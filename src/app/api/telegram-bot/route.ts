@@ -58,7 +58,7 @@ async function getAvailableSlots(): Promise<{ start: Date; end: Date; label: str
     const endHour = 19
     
     for (let h = startHour; h < endHour; h++) {
-      for (let m of [0, 20]) {
+      for (const m of [0, 20]) {
         const slotStart = new Date(day)
         slotStart.setHours(h, m, 0, 0)
         const slotEnd = new Date(slotStart.getTime() + 30*60*1000)
