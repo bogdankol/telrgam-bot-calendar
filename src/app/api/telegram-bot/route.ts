@@ -56,7 +56,7 @@ bot.on("text", async (ctx) => {
     }
 
     const response = await calendar.events.insert({
-      calendarId: GOOGLE_CALENDAR_ID!,
+      calendarId: CALENDAR_ID!,
       requestBody: event,
       conferenceDataVersion: 1,
     })
