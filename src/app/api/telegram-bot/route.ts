@@ -45,21 +45,56 @@ function generateTimeSlots(): { date: Date; label: string }[] {
   return slots.slice(0, 5) // Показываем первые 5 свободных слотов
 }
 
+async function getAvailableSlots(): Promise<{ start: Date; end: Date; label: string }[]> {
+  const slots: { start: Date; end: Date; label: string }[] = []
+  const now = new Date()
+  
+  for (let dayOffset = 1; dayOffset <= 5; dayOffset++) {
+    const day = new Date(now)
+    day.setDate(now.getDate() + dayOffset)
+    
+    // Рабочие часы
+    const startHour = 11
+    const endHour = 19
+    
+    for (let h = startHour; h < endHour; h++) {
+      for (let m of [0, 20]) {
+        const slotStart = new Date(day)
+        slotStart.setHours(h, m, 0, 0)
+        const slotEnd = new Date(slotStart.getTime() + 30*60*1000)
+
+        // Проверяем через Google Calendar, нет ли событий в этот слот
+        const events = await calendar.events.list({
+          calendarId: CALENDAR_ID!,
+          timeMin: slotStart.toISOString(),
+          timeMax: slotEnd.toISOString(),
+          singleEvents: true,
+          orderBy: "startTime",
+        })
+
+        if (!events.data.items || events.data.items.length === 0) {
+          slots.push({
+            start: slotStart,
+            end: slotEnd,
+            label: slotStart.toLocaleString("ru-RU", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })
+          })
+        }
+      }
+    }
+  }
+  return slots
+}
+
 bot.start((ctx) => {
   ctx.reply("Привет! 👋 Напиши /book, чтобы забронировать встречу.")
 })
 
-bot.command("book", (ctx) => {
-  const slots = generateTimeSlots()
-  if (slots.length === 0) {
-    return ctx.reply("К сожалению, нет доступных слотов на ближайшее время.")
-  }
+bot.command("book", async (ctx) => {
+  const slots = await getAvailableSlots()
+  if (slots.length === 0) return ctx.reply("На ближайшие дни нет свободных слотов 😔")
 
-  const buttons = slots.map(slot => [
-    Markup.button.callback(
-      `${slot.label}, ${slot.date.toLocaleDateString("ru-RU")}`,
-      `select_${slot.date.getTime()}`
-    )
+  const buttons = slots.slice(0, 10).map(slot => [
+    Markup.button.callback(slot.label, `select_${slot.start.getTime()}`)
   ])
 
   ctx.reply("Выберите удобное время:", Markup.inlineKeyboard(buttons))
