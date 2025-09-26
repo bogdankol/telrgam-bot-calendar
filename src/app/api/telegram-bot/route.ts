@@ -45,6 +45,54 @@ function generateTimeSlots(): { date: Date; label: string }[] {
   return slots.slice(0, 5) // Показываем первые 5 свободных слотов
 }
 
+async function getAvailableDays(daysAhead = 7) {
+  const now = new Date()
+  const availableDays: Date[] = []
+
+  for (let i = 1; i <= daysAhead; i++) {
+    const day = new Date(now)
+    day.setDate(now.getDate() + i)
+    // Можно проверить, есть ли хотя бы один свободный слот в этот день
+    const slots = await getAvailableSlotsForDay(day)
+    if (slots.length > 0) {
+      availableDays.push(day)
+    }
+  }
+  return availableDays
+}
+
+async function getAvailableSlotsForDay(day: Date) {
+  const slots: { start: Date; label: string }[] = []
+  const startHour = 9
+  const endHour = 18
+  const step = 30 // минут
+
+  for (let h = startHour; h < endHour; h++) {
+    for (let m = 0; m < 60; m += step) {
+      const slotStart = new Date(day)
+      slotStart.setHours(h, m, 0, 0)
+      const slotEnd = new Date(slotStart.getTime() + step * 60 * 1000)
+
+      // Проверяем Google Calendar
+      const events = await calendar.events.list({
+        calendarId: CALENDAR_ID!,
+        timeMin: slotStart.toISOString(),
+        timeMax: slotEnd.toISOString(),
+        singleEvents: true,
+      })
+
+      if (!events.data.items || events.data.items.length === 0) {
+        slots.push({
+          start: slotStart,
+          label: slotStart.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
+        })
+      }
+    }
+  }
+
+  return slots
+}
+
 async function getAvailableSlots(): Promise<{ start: Date; end: Date; label: string }[]> {
   const slots: { start: Date; end: Date; label: string }[] = []
   const now = new Date()
@@ -90,14 +138,28 @@ bot.start((ctx) => {
 })
 
 bot.command("book", async (ctx) => {
-  const slots = await getAvailableSlots()
-  if (slots.length === 0) return ctx.reply("На ближайшие дни нет свободных слотов 😔")
+  const days = await getAvailableDays(7)
+  const buttons = days.map(d => [Markup.button.callback(
+    d.toLocaleDateString("ru-RU"),
+    `day_${d.toISOString()}`
+  )])
+  ctx.reply("Выберите день для встречи:", Markup.inlineKeyboard(buttons))
+})
 
-  const buttons = slots.slice(0, 10).map(slot => [
-    Markup.button.callback(slot.label, `select_${slot.start.getTime()}`)
-  ])
+bot.action(/day_(.+)/, async (ctx) => {
+  const day = new Date(ctx.match[1])
+  const slots = await getAvailableSlotsForDay(day)
+  if (slots.length === 0) return ctx.reply("Нет доступных слотов на этот день.")
 
+  const buttons = slots.map(s => [Markup.button.callback(s.label, `slot_${s.start.getTime()}`)])
   ctx.reply("Выберите удобное время:", Markup.inlineKeyboard(buttons))
+})
+
+bot.action(/slot_(\d+)/, (ctx) => {
+  const timestamp = parseInt(ctx.match[1])
+  const startTime = new Date(timestamp)
+  sessions.set(String(ctx.from!.id), { startTime })
+  ctx.reply("Введите ваш email для подтверждения брони:")
 })
 
 bot.action(/select_(\d+)/, (ctx) => {
