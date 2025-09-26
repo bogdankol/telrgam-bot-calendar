@@ -1,5 +1,6 @@
 import { Telegraf } from "telegraf"
 import { google } from "googleapis"
+import { NextRequest, NextResponse } from 'next/server'
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
 const bot = new Telegraf(BOT_TOKEN)
@@ -73,3 +74,15 @@ bot.on("text", async (ctx) => {
     ctx.reply("⚠️ Ошибка при бронировании")
   }
 })
+
+// must have
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json() // Telegram шлёт JSON
+    await bot.handleUpdate(body)
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error("Telegram webhook error:", err)
+    return NextResponse.json({ error: "failed" }, { status: 500 })
+  }
+}
