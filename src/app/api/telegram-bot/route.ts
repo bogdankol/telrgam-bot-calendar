@@ -73,3 +73,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "failed" }, { status: 500 })
   }
 }
+
+export async function GET(req: NextRequest) {
+    console.error("Telegram webhook GET")
+    return NextResponse.json({ message: "ok" }, { status: 200 })
+}
