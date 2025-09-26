@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { google } from "googleapis"
 
 const SCOPES = ["https://www.googleapis.com/auth/calendar"]
@@ -13,7 +13,7 @@ const auth = new google.auth.JWT({
 })
 const calendar = google.calendar({ version: "v3", auth })
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const res = await calendar.events.list({
       calendarId: CALENDAR_ID,
