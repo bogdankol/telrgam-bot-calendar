@@ -25,6 +25,7 @@ const eslintConfig = [
 
       // or make it just a warning instead of error:
       "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": "warn"
     },
   },
 ];
