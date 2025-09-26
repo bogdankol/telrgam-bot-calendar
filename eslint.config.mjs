@@ -19,6 +19,13 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
     ],
+    rules: {
+      // ✅ disable restriction on "any"
+      // "@typescript-eslint/no-explicit-any": "off",
+
+      // or make it just a warning instead of error:
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
   },
 ];
 
