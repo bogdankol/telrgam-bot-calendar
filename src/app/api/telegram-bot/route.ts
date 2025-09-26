@@ -1,75 +1,67 @@
-import { NextRequest, NextResponse } from "next/server"
 import { Telegraf } from "telegraf"
 import { google } from "googleapis"
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
-const bot = new Telegraf(BOT_TOKEN)
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN!)
 
-// --- Google Calendar настройка ---
 const SCOPES = ["https://www.googleapis.com/auth/calendar"]
-const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!
-
-// Берём данные сервисного аккаунта из env (лучше чем хранить json)
-const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL!
-const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, "\n")
-
 const auth = new google.auth.JWT({
-  email: GOOGLE_CLIENT_EMAIL,
-  key: GOOGLE_PRIVATE_KEY,
-  scopes: SCOPES
+  email: process.env.GOOGLE_CLIENT_EMAIL!,
+  key: process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, "\n"),
+  scopes: SCOPES,
 })
 const calendar = google.calendar({ version: "v3", auth })
 
-// --- Telegram handlers ---
-bot.start((ctx) => {
-  ctx.reply("Привет! 👋 Напиши /book, чтобы забронировать встречу")
+// Простая "сессия" в памяти (для demo)
+const sessions = new Map<string, { startTime?: Date }>()
+
+bot.command("book", (ctx) => {
+  // Для простоты сразу предлагаем одно время
+  const startTime = new Date()
+  startTime.setDate(startTime.getDate() + 1)
+  startTime.setHours(10, 0, 0, 0)
+
+  sessions.set(String(ctx.from!.id), { startTime })
+  ctx.reply(
+    `Вы выбрали время: ${startTime.toLocaleString("ru-RU")}\n` +
+      "Введите ваш e-mail для подтверждения брони:"
+  )
 })
 
-bot.command("book", async (ctx) => {
+bot.on("text", async (ctx) => {
+  const session = sessions.get(String(ctx.from!.id))
+  if (!session || !session.startTime) return
+
+  const email = ctx.message.text.trim()
+  if (!/^[\w.-]+@[\w.-]+\.\w+$/.test(email)) {
+    return ctx.reply("❌ Неверный формат e-mail, попробуйте снова:")
+  }
+
+  const endTime = new Date(session.startTime.getTime() + 30 * 60 * 1000)
+
   try {
-    const startTime = new Date()
-    startTime.setDate(startTime.getDate() + 1) // завтра
-    startTime.setHours(10, 0, 0, 0)
-
-    const endTime = new Date(startTime.getTime() + 30 * 60 * 1000) // 30 мин
-
     const event = {
       summary: "Консультация",
-      description: "Встреча через Telegram-бота",
-      start: { dateTime: startTime.toISOString() },
+      description: `Бронирование через Telegram-бота.\nEmail клиента: ${email}`,
+      start: { dateTime: session.startTime.toISOString() },
       end: { dateTime: endTime.toISOString() },
-      attendees: [
-        { email: process.env.OWNER_EMAIL! }, // твоя почта
-        { email: "client@example.com" },     // потом можно спросить у юзера
-      ],
-      conferenceData: {
-        createRequest: { requestId: `tg-${Date.now()}` },
-      },
+      conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
     }
 
     const response = await calendar.events.insert({
-      calendarId: CALENDAR_ID,
+      calendarId: process.env.GOOGLE_CALENDAR_ID!,
       requestBody: event,
       conferenceDataVersion: 1,
     })
 
     ctx.reply(
-      `✅ Встреча забронирована!\nСсылка: ${response.data.hangoutLink}`
+      `✅ Встреча забронирована!\n` +
+        `📅 Дата: ${session.startTime.toLocaleString("ru-RU")}\n` +
+        `🔗 Ссылка на Google Meet: ${response.data.hangoutLink}\n` +
+        `📩 Приглашение будет отправлено позже.`
     )
+    sessions.delete(String(ctx.from!.id))
   } catch (err) {
     console.error(err)
     ctx.reply("⚠️ Ошибка при бронировании")
   }
 })
-
-// --- Webhook endpoint ---
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json()
-    await bot.handleUpdate(body)
-    return NextResponse.json({ ok: true })
-  } catch (e) {
-    console.error("Telegram webhook error:", e)
-    return NextResponse.json({ error: "failed" }, { status: 500 })
-  }
-}
