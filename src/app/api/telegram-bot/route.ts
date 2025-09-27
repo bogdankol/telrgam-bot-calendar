@@ -120,7 +120,7 @@ bot.start((ctx) => {
 })
 
 bot.command("book", async (ctx) => {
-  const days = await getAvailableDays(7)
+  const days = await getAvailableDays(14)
   const buttons = days.map(d => [Markup.button.callback(
     d.toLocaleDateString("ru-RU"),
     `day_${d.toISOString()}`
