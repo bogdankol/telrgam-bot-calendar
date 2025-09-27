@@ -7,11 +7,8 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
 const bot = new Telegraf(BOT_TOKEN)
 
 // --- Google Calendar настройка ---
-const SCOPES = ["https://www.googleapis.com/auth/calendar"] // 🔥 УБРАЛ ЛИШНИЙ ПРОБЕЛ!
+const SCOPES = ["https://www.googleapis.com/auth/calendar"]
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!
-// const OWNER_EMAIL = process.env.OWNER_EMAIL!
-
-// Берём данные сервисного аккаунта из env
 const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL!
 const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, "\n")
 const TIMEZONE = "Europe/Kiev"
@@ -23,65 +20,25 @@ const auth = new google.auth.JWT({
 })
 const calendar = google.calendar({ version: "v3", auth })
 
-// Простая "сессия" в памяти (для demo; в продакшене — Redis или БД)
+// Простая сессия в памяти
 const sessions = new Map<string, { startTime?: Date }>()
 
-// --- Получение доступных дней с пропуском выходных ---
-async function getAvailableDays(daysAhead = 30, minDays = 10) {
-  const now = new Date()
-  const availableDays: Date[] = []
-
-  // крутим до daysAhead дней вперёд
-  for (let i = 1; i <= daysAhead; i++) {
-    const day = new Date(now)
-    day.setDate(now.getDate() + i)
-
-    const dayOfWeek = day.getDay() // 0 - воскресенье, 6 - суббота
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      continue // пропускаем выходные
-    }
-
-    // проверяем слоты
-    const slots = await getAvailableSlotsForDay(day)
-
-    // добавляем день только если есть свободные слоты
-    if (slots.length > 0) {
-      availableDays.push(day)
-    }
-
-    // если уже набрали минимум — можно остановиться
-    if (availableDays.length >= minDays) break
-  }
-
-  return availableDays
-}
-
-// --- Получение свободных слотов на конкретный день с учетом часового пояса ---
+// --- Получение свободных слотов для примера ---
 async function getAvailableSlotsForDay(day: Date) {
   const slots: { start: Date; label: string }[] = []
-
-  // --- Настройки рабочего дня и встреч ---
-  const startHour = 11                 // рабочий день начинается в 11:00
-  const endHour = 19                   // рабочий день заканчивается в 19:00
-  const meetingDuration = 60           // длительность встречи (в минутах)
-  const breakAfterMeeting = 30         // пауза после встречи (в минутах)
-  const maxMeetingsPerDay = 5          // максимум свободных слотов в день
+  const startHour = 11
+  const endHour = 19
+  const meetingDuration = 60
+  const breakAfterMeeting = 30
+  const maxMeetingsPerDay = 5
 
   let meetingsCount = 0
-
-  // Начинаем с 11:00
   let slotStart = new Date(day)
   slotStart.setHours(startHour, 0, 0, 0)
 
-  while (meetingsCount < maxMeetingsPerDay) {
+  while (slotStart.getHours() < endHour && meetingsCount < maxMeetingsPerDay) {
     const slotEnd = new Date(slotStart.getTime() + meetingDuration * 60 * 1000)
 
-    // Если встреча выходит за пределы рабочего времени — останавливаемся
-    if (slotEnd.getHours() >= endHour && slotEnd.getMinutes() > 0) {
-      break
-    }
-
-    // Проверяем Google Calendar на наличие пересечений
     const events = await calendar.events.list({
       calendarId: CALENDAR_ID!,
       timeMin: slotStart.toISOString(),
@@ -90,101 +47,70 @@ async function getAvailableSlotsForDay(day: Date) {
     })
 
     if (!events.data.items || events.data.items.length === 0) {
-      // Слот свободен — добавляем в результат
       slots.push({
         start: new Date(slotStart),
-        label: slotStart.toLocaleTimeString("ru-RU", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        label: slotStart.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
       })
-
       meetingsCount++
-      // Двигаем время на встречу + паузу
       slotStart = new Date(slotEnd.getTime() + breakAfterMeeting * 60 * 1000)
     } else {
-      // Если занято, пропускаем слот: двигаем время на полтора часа (meetingDuration + break)
-      slotStart = new Date(slotStart.getTime() + (meetingDuration + breakAfterMeeting) * 60 * 1000)
+      slotStart = new Date(slotStart.getTime() + 30 * 60 * 1000)
     }
   }
 
   return slots
 }
 
-
+// --- Бот ---
 bot.start((ctx) => {
   ctx.reply("Привет! 👋 Напиши /book, чтобы забронировать встречу.")
 })
 
 bot.command("book", async (ctx) => {
-  const days = await getAvailableDays(14)
-  const buttons = days.map(d => [Markup.button.callback(
-    d.toLocaleDateString("ru-RU"),
-    `day_${d.toISOString()}`
-  )])
-  ctx.reply("Выберите день для встречи:", Markup.inlineKeyboard(buttons))
-})
-
-bot.action(/day_(.+)/, async (ctx) => {
-  const day = new Date(ctx.match[1])
-  const slots = await getAvailableSlotsForDay(day)
-  if (slots.length === 0) return ctx.reply("Нет доступных слотов на этот день.")
+  const now = new Date()
+  const slots = await getAvailableSlotsForDay(now) // Для примера берем один день
+  if (slots.length === 0) return ctx.reply("Нет свободных слотов на сегодня.")
 
   const buttons = slots.map(s => [Markup.button.callback(s.label, `slot_${s.start.getTime()}`)])
   ctx.reply("Выберите удобное время:", Markup.inlineKeyboard(buttons))
 })
 
+// --- Выбор слота ---
 bot.action(/slot_(\d+)/, (ctx) => {
   const timestamp = parseInt(ctx.match[1])
   const startTime = new Date(timestamp)
   sessions.set(String(ctx.from!.id), { startTime })
-  ctx.reply("Введите ваш email для подтверждения брони:")
-})
 
-bot.action(/select_(\d+)/, (ctx) => {
-  const timestamp = parseInt(ctx.match[1])
-  const startTime = new Date(timestamp)
-
-  sessions.set(String(ctx.from!.id), { startTime })
-
-  ctx.replyWithMarkdown(
-    `Вы выбрали: *${startTime.toLocaleString("ru-RU")}*\n\n` +
-    "Пожалуйста, введите ваш email для подтверждения бронирования:"
+  // --- Запрос контакта через Telegram ---
+  ctx.reply(
+    "Пожалуйста, поделитесь своим номером телефона для подтверждения брони:",
+    Markup.keyboard([Markup.button.contactRequest("Отправить контакт")])
+      .oneTime()
+      .resize()
   )
 })
 
-bot.on("text", async (ctx) => {
+// --- Получение контакта пользователя ---
+bot.on("contact", async (ctx) => {
   const userId = String(ctx.from!.id)
   const session = sessions.get(userId)
   if (!session || !session.startTime) return
 
-  const email = ctx.message.text.trim()
-  if (!/^[\w.-]+@[\w.-]+\.\w+$/.test(email)) {
-    return ctx.reply("❌ Неверный формат email. Попробуйте снова:")
-  }
+  const contact = ctx.message.contact
+  const phone = contact.phone_number
+  const name = contact.first_name + (contact.last_name ? " " + contact.last_name : "")
 
   const start = DateTime.fromJSDate(session.startTime).setZone(TIMEZONE)
   const end = start.plus({ minutes: 60 })
 
   try {
+    // --- Создание события в Google Calendar ---
     const event = {
       summary: "Консультация",
-      description: `Забронировано через Telegram-бота.\nEmail клиента: ${email}`,
-      start: {
-        dateTime: start.toISO({ suppressMilliseconds: true }),
-        timeZone: TIMEZONE, // 🔥 УКАЖИТЕ СВОЙ ЧАСОВОЙ ПОЯС!
-      },
-      end: {
-        dateTime: end.toISO({ suppressMilliseconds: true }),
-        timeZone: TIMEZONE,
-      },
-      // attendees: [ // only for business accounts in google
-      //   { email: OWNER_EMAIL! },
-      //   { email },
-      // ],
-      conferenceData: {
-        createRequest: { requestId: `tg-${Date.now()}` },
-      },
+      description: `Забронировано через Telegram-бота.\nКлиент: ${name}\nТелефон: ${phone}`,
+      start: { dateTime: start.toISO({ suppressMilliseconds: true }), timeZone: TIMEZONE },
+      end: { dateTime: end.toISO({ suppressMilliseconds: true }), timeZone: TIMEZONE },
+      conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
     }
 
     const response = await calendar.events.insert({
@@ -194,12 +120,11 @@ bot.on("text", async (ctx) => {
     })
 
     await ctx.reply(
-      `✅ Встреча успешно забронирована!\n\n` +
+      `✅ Встреча успешно забронирована!\n` +
       `📅 Дата и время: ${session.startTime.toLocaleString("ru-RU")}\n` +
-      (response.data.hangoutLink
-        ? `🔗 Ссылка на Google Meet: ${response.data.hangoutLink}\n`
-        : `ℹ️ Ссылка появится в приглашении.\n`) +
-      `📧 Приглашение отправлено на ${email}.`
+      (response.data.hangoutLink ? `🔗 Ссылка на Google Meet: ${response.data.hangoutLink}\n` : "") +
+      `📞 Телефон: ${phone}\n` +
+      `👤 Имя: ${name}`
     )
 
     sessions.delete(userId)
@@ -209,7 +134,7 @@ bot.on("text", async (ctx) => {
   }
 })
 
-// Webhook handler
+// --- Webhook handler для Next.js ---
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
