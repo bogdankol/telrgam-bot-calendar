@@ -27,10 +27,11 @@ const calendar = google.calendar({ version: "v3", auth })
 const sessions = new Map<string, { startTime?: Date }>()
 
 // --- Получение доступных дней с пропуском выходных ---
-async function getAvailableDays(daysAhead = 14, minDays = 10) {
+async function getAvailableDays(daysAhead = 30, minDays = 10) {
   const now = new Date()
   const availableDays: Date[] = []
 
+  // крутим до daysAhead дней вперёд
   for (let i = 1; i <= daysAhead; i++) {
     const day = new Date(now)
     day.setDate(now.getDate() + i)
@@ -40,15 +41,15 @@ async function getAvailableDays(daysAhead = 14, minDays = 10) {
       continue // пропускаем выходные
     }
 
-    // Проверяем слоты
+    // проверяем слоты
     const slots = await getAvailableSlotsForDay(day)
 
-    // Добавляем день даже если слотов нет, пока не добрали минимум
-    if (slots.length > 0 || availableDays.length < minDays) {
+    // добавляем день только если есть свободные слоты
+    if (slots.length > 0) {
       availableDays.push(day)
     }
 
-    // Если уже набрали минимум рабочих дней — можно остановиться
+    // если уже набрали минимум — можно остановиться
     if (availableDays.length >= minDays) break
   }
 
