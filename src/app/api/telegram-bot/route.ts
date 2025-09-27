@@ -13,6 +13,7 @@ const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!
 // Берём данные сервисного аккаунта из env
 const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL!
 const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, "\n")
+const TIMEZONE = "Europe/Kiev"
 
 const auth = new google.auth.JWT({
   email: GOOGLE_CLIENT_EMAIL,
@@ -24,27 +25,7 @@ const calendar = google.calendar({ version: "v3", auth })
 // Простая "сессия" в памяти (для demo; в продакшене — Redis или БД)
 const sessions = new Map<string, { startTime?: Date }>()
 
-// Генерация ближайших слотов (завтра с 9:00 до 18:00 с шагом 30 мин)
-function generateTimeSlots(): { date: Date; label: string }[] {
-  const slots = []
-  const now = new Date()
-  const tomorrow = new Date(now)
-  tomorrow.setDate(now.getDate() + 1)
-  tomorrow.setHours(9, 0, 0, 0) // Начинаем с 9:00
-
-  for (let i = 0; i < 18; i++) { // 9:00–18:00 → 18 слотов
-    const slot = new Date(tomorrow.getTime() + i * 30 * 60 * 1000)
-    // Пропускаем прошедшие (на случай, если сейчас уже поздно)
-    if (slot > now) {
-      slots.push({
-        date: slot,
-        label: slot.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
-      })
-    }
-  }
-  return slots.slice(0, 5) // Показываем первые 5 свободных слотов
-}
-
+// --- Получение доступных дней с пропуском выходных ---
 async function getAvailableDays(daysAhead = 7) {
   const now = new Date()
   const availableDays: Date[] = []
@@ -52,20 +33,26 @@ async function getAvailableDays(daysAhead = 7) {
   for (let i = 1; i <= daysAhead; i++) {
     const day = new Date(now)
     day.setDate(now.getDate() + i)
-    // Можно проверить, есть ли хотя бы один свободный слот в этот день
-    const slots = await getAvailableSlotsForDay(day)
-    if (slots.length > 0) {
-      availableDays.push(day)
+
+    // Если день суббота или воскресенье, сдвигаем на +2 дня
+    const dayOfWeek = day.getDay() // 0 - воскресенье, 6 - суббота
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      day.setDate(day.getDate() + 2)
     }
+
+    const slots = await getAvailableSlotsForDay(day)
+    if (slots.length > 0) availableDays.push(day)
   }
+
   return availableDays
 }
 
+// --- Получение свободных слотов на конкретный день с учетом часового пояса ---
 async function getAvailableSlotsForDay(day: Date) {
   const slots: { start: Date; label: string }[] = []
   const startHour = 9
   const endHour = 18
-  const step = 30 // минут
+  const step = 90 // минут
 
   for (let h = startHour; h < endHour; h++) {
     for (let m = 0; m < 60; m += step) {
@@ -73,7 +60,7 @@ async function getAvailableSlotsForDay(day: Date) {
       slotStart.setHours(h, m, 0, 0)
       const slotEnd = new Date(slotStart.getTime() + step * 60 * 1000)
 
-      // Проверяем Google Calendar
+      // Проверяем Google Calendar на наличие событий
       const events = await calendar.events.list({
         calendarId: CALENDAR_ID!,
         timeMin: slotStart.toISOString(),
@@ -90,46 +77,6 @@ async function getAvailableSlotsForDay(day: Date) {
     }
   }
 
-  return slots
-}
-
-async function getAvailableSlots(): Promise<{ start: Date; end: Date; label: string }[]> {
-  const slots: { start: Date; end: Date; label: string }[] = []
-  const now = new Date()
-  
-  for (let dayOffset = 1; dayOffset <= 5; dayOffset++) {
-    const day = new Date(now)
-    day.setDate(now.getDate() + dayOffset)
-    
-    // Рабочие часы
-    const startHour = 11
-    const endHour = 19
-    
-    for (let h = startHour; h < endHour; h++) {
-      for (const m of [0, 20]) {
-        const slotStart = new Date(day)
-        slotStart.setHours(h, m, 0, 0)
-        const slotEnd = new Date(slotStart.getTime() + 30*60*1000)
-
-        // Проверяем через Google Calendar, нет ли событий в этот слот
-        const events = await calendar.events.list({
-          calendarId: CALENDAR_ID!,
-          timeMin: slotStart.toISOString(),
-          timeMax: slotEnd.toISOString(),
-          singleEvents: true,
-          orderBy: "startTime",
-        })
-
-        if (!events.data.items || events.data.items.length === 0) {
-          slots.push({
-            start: slotStart,
-            end: slotEnd,
-            label: slotStart.toLocaleString("ru-RU", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })
-          })
-        }
-      }
-    }
-  }
   return slots
 }
 
@@ -192,13 +139,13 @@ bot.on("text", async (ctx) => {
       description: `Забронировано через Telegram-бота.\nEmail клиента: ${email}`,
       start: {
         dateTime: session.startTime.toISOString(),
-        timeZone: "Europe/Kiev", // 🔥 УКАЖИТЕ СВОЙ ЧАСОВОЙ ПОЯС!
+        timeZone: TIMEZONE, // 🔥 УКАЖИТЕ СВОЙ ЧАСОВОЙ ПОЯС!
       },
       end: {
         dateTime: endTime.toISOString(),
-        timeZone: "Europe/Kiev",
+        timeZone: TIMEZONE,
       },
-      // attendees: [
+      // attendees: [ // only for business accounts in google
       //   { email: OWNER_EMAIL! },
       //   { email },
       // ],
