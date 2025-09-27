@@ -27,7 +27,7 @@ const calendar = google.calendar({ version: "v3", auth })
 const sessions = new Map<string, { startTime?: Date }>()
 
 // --- Получение доступных дней с пропуском выходных ---
-async function getAvailableDays(daysAhead = 7) {
+async function getAvailableDays(daysAhead = 14) {
   const now = new Date()
   const availableDays: Date[] = []
 
@@ -51,30 +51,44 @@ async function getAvailableDays(daysAhead = 7) {
 // --- Получение свободных слотов на конкретный день с учетом часового пояса ---
 async function getAvailableSlotsForDay(day: Date) {
   const slots: { start: Date; label: string }[] = []
-  const startHour = 9
-  const endHour = 18
-  const step = 90 // минут
+  const startHour = 11
+  const endHour = 19
+  const meetingDuration = 60 // мин
+  const breakAfterMeeting = 30 // мин
+  const maxMeetingsPerDay = 5
 
-  for (let h = startHour; h < endHour; h++) {
-    for (let m = 0; m < 60; m += step) {
-      const slotStart = new Date(day)
-      slotStart.setHours(h, m, 0, 0)
-      const slotEnd = new Date(slotStart.getTime() + step * 60 * 1000)
+  let meetingsCount = 0
 
-      // Проверяем Google Calendar на наличие событий
-      const events = await calendar.events.list({
-        calendarId: CALENDAR_ID!,
-        timeMin: slotStart.toISOString(),
-        timeMax: slotEnd.toISOString(),
-        singleEvents: true,
+  // Перебираем время по шагу = meetingDuration + breakAfterMeeting
+  for (let h = startHour; h < endHour; ) {
+    if (meetingsCount >= maxMeetingsPerDay) break
+
+    const slotStart = new Date(day)
+    slotStart.setHours(h, 0, 0, 0)
+    const slotEnd = new Date(slotStart.getTime() + meetingDuration * 60 * 1000)
+
+    // Проверяем Google Calendar
+    const events = await calendar.events.list({
+      calendarId: CALENDAR_ID!,
+      timeMin: slotStart.toISOString(),
+      timeMax: slotEnd.toISOString(),
+      singleEvents: true,
+    })
+
+    if (!events.data.items || events.data.items.length === 0) {
+      slots.push({
+        start: slotStart,
+        label: slotStart.toLocaleTimeString("ru-RU", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       })
-
-      if (!events.data.items || events.data.items.length === 0) {
-        slots.push({
-          start: slotStart,
-          label: slotStart.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
-        })
-      }
+      meetingsCount++
+      // после встречи делаем перерыв
+      h += (meetingDuration + breakAfterMeeting) / 60
+    } else {
+      // если занято — проверяем следующий час
+      h++
     }
   }
 
