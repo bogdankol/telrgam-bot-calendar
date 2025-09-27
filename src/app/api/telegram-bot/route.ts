@@ -1,6 +1,7 @@
 import { Telegraf, Markup } from "telegraf"
 import { google } from "googleapis"
 import { NextRequest, NextResponse } from 'next/server'
+import { DateTime } from 'luxon'
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
 const bot = new Telegraf(BOT_TOKEN)
@@ -37,7 +38,7 @@ async function getAvailableDays(daysAhead = 7) {
     // Если день суббота или воскресенье, сдвигаем на +2 дня
     const dayOfWeek = day.getDay() // 0 - воскресенье, 6 - суббота
     if (dayOfWeek === 0 || dayOfWeek === 6) {
-      day.setDate(day.getDate() + 2)
+      continue
     }
 
     const slots = await getAvailableSlotsForDay(day)
@@ -131,18 +132,19 @@ bot.on("text", async (ctx) => {
     return ctx.reply("❌ Неверный формат email. Попробуйте снова:")
   }
 
-  const endTime = new Date(session.startTime.getTime() + 30 * 60 * 1000)
+  const start = DateTime.fromJSDate(session.startTime).setZone(TIMEZONE)
+  const end = start.plus({ minutes: 60 })
 
   try {
     const event = {
       summary: "Консультация",
       description: `Забронировано через Telegram-бота.\nEmail клиента: ${email}`,
       start: {
-        dateTime: session.startTime.toISOString(),
+        dateTime: start.toISO({ suppressMilliseconds: true }),
         timeZone: TIMEZONE, // 🔥 УКАЖИТЕ СВОЙ ЧАСОВОЙ ПОЯС!
       },
       end: {
-        dateTime: endTime.toISOString(),
+        dateTime: end.toISO({ suppressMilliseconds: true }),
         timeZone: TIMEZONE,
       },
       // attendees: [ // only for business accounts in google
