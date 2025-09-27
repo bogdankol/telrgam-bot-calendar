@@ -27,7 +27,7 @@ const calendar = google.calendar({ version: "v3", auth })
 const sessions = new Map<string, { startTime?: Date }>()
 
 // --- Получение доступных дней с пропуском выходных ---
-async function getAvailableDays(daysAhead = 14) {
+async function getAvailableDays(daysAhead = 14, minDays = 10) {
   const now = new Date()
   const availableDays: Date[] = []
 
@@ -35,14 +35,21 @@ async function getAvailableDays(daysAhead = 14) {
     const day = new Date(now)
     day.setDate(now.getDate() + i)
 
-    // Если день суббота или воскресенье, сдвигаем на +2 дня
     const dayOfWeek = day.getDay() // 0 - воскресенье, 6 - суббота
     if (dayOfWeek === 0 || dayOfWeek === 6) {
-      continue
+      continue // пропускаем выходные
     }
 
+    // Проверяем слоты
     const slots = await getAvailableSlotsForDay(day)
-    if (slots.length > 0) availableDays.push(day)
+
+    // Добавляем день даже если слотов нет, пока не добрали минимум
+    if (slots.length > 0 || availableDays.length < minDays) {
+      availableDays.push(day)
+    }
+
+    // Если уже набрали минимум рабочих дней — можно остановиться
+    if (availableDays.length >= minDays) break
   }
 
   return availableDays
@@ -51,23 +58,32 @@ async function getAvailableDays(daysAhead = 14) {
 // --- Получение свободных слотов на конкретный день с учетом часового пояса ---
 async function getAvailableSlotsForDay(day: Date) {
   const slots: { start: Date; label: string }[] = []
-  const startHour = 11
-  const endHour = 19
-  const meetingDuration = 60 // мин
-  const breakAfterMeeting = 30 // мин
-  const maxMeetingsPerDay = 5
+
+  // --- Настройки рабочего дня и встреч ---
+  const startHour = 11                 // рабочий день начинается в 11:00
+  const endHour = 19                   // рабочий день заканчивается в 19:00
+  const meetingDuration = 60           // длительность встречи (в минутах)
+  const breakAfterMeeting = 30         // пауза после встречи (в минутах)
+  const maxMeetingsPerDay = 5          // максимум встреч в день
 
   let meetingsCount = 0
 
-  // Перебираем время по шагу = meetingDuration + breakAfterMeeting
-  for (let h = startHour; h < endHour; ) {
-    if (meetingsCount >= maxMeetingsPerDay) break
+  // Начинаем с 11:00 текущего дня
+  let slotStart = new Date(day)
+  slotStart.setHours(startHour, 0, 0, 0)
 
-    const slotStart = new Date(day)
-    slotStart.setHours(h, 0, 0, 0)
+  // Цикл идёт по времени, пока:
+  // 1) не вышли за пределы рабочего дня
+  // 2) не превысили максимум встреч
+  while (slotStart.getHours() < endHour && meetingsCount < maxMeetingsPerDay) {
     const slotEnd = new Date(slotStart.getTime() + meetingDuration * 60 * 1000)
 
-    // Проверяем Google Calendar
+    // Если встреча выходит за пределы рабочего времени — останавливаемся
+    if (slotEnd.getHours() >= endHour && slotEnd.getMinutes() > 0) {
+      break
+    }
+
+    // --- Проверяем Google Calendar ---
     const events = await calendar.events.list({
       calendarId: CALENDAR_ID!,
       timeMin: slotStart.toISOString(),
@@ -75,20 +91,23 @@ async function getAvailableSlotsForDay(day: Date) {
       singleEvents: true,
     })
 
+    // Если нет пересечений — добавляем слот
     if (!events.data.items || events.data.items.length === 0) {
       slots.push({
-        start: slotStart,
+        start: new Date(slotStart),
         label: slotStart.toLocaleTimeString("ru-RU", {
           hour: "2-digit",
           minute: "2-digit",
         }),
       })
+
       meetingsCount++
-      // после встречи делаем перерыв
-      h += (meetingDuration + breakAfterMeeting) / 60
+
+      // Двигаем время вперёд: встреча + перерыв
+      slotStart = new Date(slotEnd.getTime() + breakAfterMeeting * 60 * 1000)
     } else {
-      // если занято — проверяем следующий час
-      h++
+      // Если занято — двигаем время только на 30 минут
+      slotStart = new Date(slotStart.getTime() + 30 * 60 * 1000)
     }
   }
 
