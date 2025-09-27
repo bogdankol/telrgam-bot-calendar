@@ -60,23 +60,28 @@ async function getAvailableDays(daysAhead = 30, minDays = 10) {
 async function getAvailableSlotsForDay(day: Date) {
   const slots: { start: Date; label: string }[] = []
 
+  // --- Настройки рабочего дня и встреч ---
   const startHour = 11                 // рабочий день начинается в 11:00
   const endHour = 19                   // рабочий день заканчивается в 19:00
-  const meetingDuration = 60           // длительность встречи в минутах
-  const breakAfterMeeting = 30         // перерыв после встречи
-  const maxMeetingsPerDay = 5          // максимум встреч в день
+  const meetingDuration = 60           // длительность встречи (в минутах)
+  const breakAfterMeeting = 30         // пауза после встречи (в минутах)
+  const maxMeetingsPerDay = 5          // максимум свободных слотов в день
 
   let meetingsCount = 0
+
+  // Начинаем с 11:00
   let slotStart = new Date(day)
   slotStart.setHours(startHour, 0, 0, 0)
 
-  while (slotStart.getHours() < endHour && meetingsCount < maxMeetingsPerDay) {
+  while (meetingsCount < maxMeetingsPerDay) {
     const slotEnd = new Date(slotStart.getTime() + meetingDuration * 60 * 1000)
 
     // Если встреча выходит за пределы рабочего времени — останавливаемся
-    if (slotEnd.getHours() >= endHour && slotEnd.getMinutes() > 0) break
+    if (slotEnd.getHours() >= endHour && slotEnd.getMinutes() > 0) {
+      break
+    }
 
-    // --- Проверяем Google Calendar на пересечение с событиями ---
+    // Проверяем Google Calendar на наличие пересечений
     const events = await calendar.events.list({
       calendarId: CALENDAR_ID!,
       timeMin: slotStart.toISOString(),
@@ -85,25 +90,27 @@ async function getAvailableSlotsForDay(day: Date) {
     })
 
     if (!events.data.items || events.data.items.length === 0) {
-      // Свободный слот, добавляем
+      // Слот свободен — добавляем в результат
       slots.push({
         start: new Date(slotStart),
-        label: slotStart.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
+        label: slotStart.toLocaleTimeString("ru-RU", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       })
+
       meetingsCount++
-      // Следующий слот начинается через длительность встречи + перерыв
+      // Двигаем время на встречу + паузу
       slotStart = new Date(slotEnd.getTime() + breakAfterMeeting * 60 * 1000)
     } else {
-      // Если занято, двигаем слот на конец пересекающейся встречи + перерыв
-      const latestEventEnd = events.data.items
-        .map(ev => new Date(ev.end?.dateTime || ev.end?.date || 0))
-        .reduce((max, curr) => (curr > max ? curr : max), slotStart)
-      slotStart = new Date(latestEventEnd.getTime() + breakAfterMeeting * 60 * 1000)
+      // Если занято, пропускаем слот: двигаем время на полтора часа (meetingDuration + break)
+      slotStart = new Date(slotStart.getTime() + (meetingDuration + breakAfterMeeting) * 60 * 1000)
     }
   }
 
   return slots
 }
+
 
 bot.start((ctx) => {
   ctx.reply("Привет! 👋 Напиши /book, чтобы забронировать встречу.")
