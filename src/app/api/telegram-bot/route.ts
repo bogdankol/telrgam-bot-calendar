@@ -24,7 +24,13 @@ const calendar = google.calendar({ version: 'v3', auth })
 // Простая "сессия" в памяти
 const sessions = new Map<
 	string,
-	{ startTime?: Date; phone?: string; name?: string; email?: string }
+	{
+		startTime?: Date
+		phone?: string
+		name?: string
+		email?: string
+		waitingEmail?: boolean
+	}
 >()
 
 // --- Получение доступных дней ---
@@ -141,13 +147,20 @@ bot.action(/slot_(\d+)/, ctx => {
 bot.on('contact', ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
-	if (!session || !session.startTime) return
 
-	console.log({ ctx })
+	if (!session || !session.startTime) {
+		return ctx.reply('Сначала выберите день и время встречи через /book.')
+	}
+
+	// Сохраняем контакт
 	const contact = ctx.message.contact
 	session.phone = contact.phone_number
 	session.name =
 		contact.first_name + (contact.last_name ? ' ' + contact.last_name : '')
+	sessions.set(userId, session)
+
+	// После контакта бот всегда ожидает email
+	session.waitingEmail = true // флаг, что теперь ждем email
 	sessions.set(userId, session)
 
 	ctx.reply('Спасибо! Теперь введите ваш email для подтверждения брони:')
@@ -158,10 +171,9 @@ bot.on('text', async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 
-	// Если сессии нет или ещё не отправлен контакт
 	if (!session) {
 		return ctx.reply(
-			'Пожалуйста, сначала выберите день и время встречи через команду /book.',
+			'Пожалуйста, сначала выберите день и время встречи через /book.',
 		)
 	}
 	if (!session.startTime) {
@@ -172,6 +184,11 @@ bot.on('text', async ctx => {
 			'Пожалуйста, сначала отправьте свой контакт (номер телефона).',
 		)
 	}
+	if (!session.waitingEmail) {
+		return ctx.reply(
+			'Вы уже отправляли email или нужно сначала выбрать контакт.',
+		)
+	}
 
 	const email = ctx.message.text.trim()
 	if (!/^[\w.-]+@[\w.-]+\.\w+$/.test(email)) {
@@ -179,9 +196,9 @@ bot.on('text', async ctx => {
 	}
 
 	session.email = email
+	delete session.waitingEmail // email получен, больше не ждем
 	sessions.set(userId, session)
 
-	// далее идёт код создания события в календаре
 	const start = DateTime.fromJSDate(session.startTime, { zone: TIMEZONE })
 	const end = start.plus({ minutes: 60 })
 
