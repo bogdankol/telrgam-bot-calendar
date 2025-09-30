@@ -65,14 +65,14 @@ async function getAvailableSlotsForDay(day: DateTime) {
     const slotEnd = slotStart.plus({ minutes: meetingDuration });
 
     const res = await calendar.events.list({
-      // @ts-expect-error
+      // @ts-expect-error types error
       calendarId: CALENDAR_ID,
       timeMin: slotStart.toISO(),
       timeMax: slotEnd.toISO(),
       singleEvents: true,
     });
 
-    // @ts-expect-error
+    // @ts-expect-error type error
     const events = res.data.items || [];
 
     if (events.length === 0) {
