@@ -136,20 +136,6 @@ bot.action(/slot_(\d+)/, (ctx) => {
 })
 
 // --- Получение контакта ---
-// bot.on("contact", (ctx) => {
-//   const userId = String(ctx.from!.id)
-//   const session = sessions.get(userId)
-//   if (!session || !session.startTime) return
-
-//   const contact = ctx.message.contact
-//   session.phone = contact.phone_number
-//   session.name =
-//     contact.first_name + (contact.last_name ? " " + contact.last_name : "")
-//   sessions.set(userId, session)
-
-//   ctx.reply("Спасибо! Теперь введите ваш email для подтверждения брони:")
-// })
-
 bot.on("message", async (ctx) => {
   if ("contact" in ctx.message) {
     const userId = String(ctx.from!.id)
@@ -198,8 +184,8 @@ bot.on("text", async (ctx) => {
       conferenceDataVersion: 1,
     })
 
-    // --- Ссылка на оплату (пример для Monobank Invoice) ---
-    const paymentLink = `https://send.monobank.ua/jar/XXXXXXXXX` // вставь свою ссылку
+    // --- Ссылка на оплату Monobank (пример jar/invoice) ---
+    const paymentLink = `https://send.monobank.ua/jar/XXXXXXXXX`
     const amount = 800
 
     await ctx.reply(
