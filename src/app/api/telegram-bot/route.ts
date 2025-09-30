@@ -58,10 +58,10 @@ async function getAvailableSlotsForDay(day: DateTime) {
   const breakAfterMeeting = 30; // мин
   const maxMeetingsPerDay = 5;
 
-  let meetingsCount = 0;
   let slotStart = day.set({ hour: startHour, minute: 0, second: 0, millisecond: 0 });
+  let slotCount = 0; // учитываем все слоты, чтобы не превысить лимит
 
-  while (meetingsCount < maxMeetingsPerDay) {
+  while (slotCount < maxMeetingsPerDay) {
     const slotEnd = slotStart.plus({ minutes: meetingDuration });
 
     const res = await calendar.events.list({
@@ -80,11 +80,10 @@ async function getAvailableSlotsForDay(day: DateTime) {
         start: slotStart,
         label: slotStart.toFormat('HH:mm'),
       });
-      meetingsCount++;
-      slotStart = slotEnd.plus({ minutes: breakAfterMeeting });
-    } else {
-      slotStart = slotEnd.plus({ minutes: breakAfterMeeting });
     }
+
+    slotCount++; // увеличиваем счетчик **всегда**, независимо от занятости слота
+    slotStart = slotEnd.plus({ minutes: breakAfterMeeting });
 
     if (slotStart.hour >= endHour) break;
   }
