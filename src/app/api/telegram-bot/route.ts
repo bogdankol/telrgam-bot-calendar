@@ -124,11 +124,8 @@ bot.action(/day_(.+)/, async (ctx) => {
 // --- Выбор слота и запрос контакта ---
 bot.action(/slot_(\d+)/, (ctx) => {
   const timestamp = parseInt(ctx.match[1])
-
-  // Делаем Luxon DateTime сразу в Киеве
-  const startTime = DateTime.fromMillis(timestamp, { zone: TIMEZONE })
-
-  sessions.set(String(ctx.from!.id), { startTime: startTime.toJSDate() })
+  const startTime = DateTime.fromMillis(timestamp, { zone: TIMEZONE }).toJSDate() // сохраняем уже с учетом Europe/Kiev
+  sessions.set(String(ctx.from!.id), { startTime })
 
   ctx.reply(
     "Пожалуйста, поделитесь своим номером телефона для подтверждения брони:",
@@ -168,8 +165,14 @@ bot.on("text", async (ctx) => {
   sessions.set(userId, session)
 
     // тут берём дату как Luxon в зоне Киев
-  const start = DateTime.fromJSDate(session.startTime, { zone: TIMEZONE })
+  const start = DateTime.fromJSDate(session.startTime)
   const end = start.plus({ minutes: 60 })
+
+  console.log({
+    start,
+    end,
+    startTime: session.startTime
+  })
 
   try {
     const event = {
