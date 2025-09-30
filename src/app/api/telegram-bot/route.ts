@@ -136,18 +136,34 @@ bot.action(/slot_(\d+)/, (ctx) => {
 })
 
 // --- Получение контакта ---
-bot.on("contact", (ctx) => {
-  const userId = String(ctx.from!.id)
-  const session = sessions.get(userId)
-  if (!session || !session.startTime) return
+// bot.on("contact", (ctx) => {
+//   const userId = String(ctx.from!.id)
+//   const session = sessions.get(userId)
+//   if (!session || !session.startTime) return
 
-  const contact = ctx.message.contact
-  session.phone = contact.phone_number
-  session.name =
-    contact.first_name + (contact.last_name ? " " + contact.last_name : "")
-  sessions.set(userId, session)
+//   const contact = ctx.message.contact
+//   session.phone = contact.phone_number
+//   session.name =
+//     contact.first_name + (contact.last_name ? " " + contact.last_name : "")
+//   sessions.set(userId, session)
 
-  ctx.reply("Спасибо! Теперь введите ваш email для подтверждения брони:")
+//   ctx.reply("Спасибо! Теперь введите ваш email для подтверждения брони:")
+// })
+
+bot.on("message", async (ctx) => {
+  if ("contact" in ctx.message) {
+    const userId = String(ctx.from!.id)
+    const session = sessions.get(userId)
+    if (!session || !session.startTime) return
+
+    const contact = ctx.message.contact
+    session.phone = contact.phone_number
+    session.name =
+      contact.first_name + (contact.last_name ? " " + contact.last_name : "")
+    sessions.set(userId, session)
+
+    await ctx.reply("Спасибо! Теперь введите ваш email для подтверждения брони:")
+  }
 })
 
 // --- Обработка email и создание события ---
