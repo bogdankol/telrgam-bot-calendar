@@ -121,6 +121,18 @@ function handlePhone(ctx: any) {
 	}
 }
 
+// tell phone number check
+function isValidPhone(phone: string) {
+  // убираем пробелы и дефисы для проверки
+  const cleaned = phone.replace(/[\s-]/g, '');
+
+  // проверяем на цифры и максимум один +
+  if (/[^+\d]/.test(cleaned)) return false; // есть буквы или другие символы
+  if ((cleaned.match(/\+/g) || []).length > 1) return false; // больше одного +
+  if (!/^\+?\d{9,15}$/.test(cleaned)) return false; // длина номера
+  return true;
+}
+
 // --- Команды бота ---
 bot.start(ctx => {
 	ctx.reply('Привет! 👋 Напиши /book, чтобы забронировать встречу.')
@@ -164,33 +176,41 @@ bot.action(/slot_(\d+)/, ctx => {
 
 // --- Получение контакта ---
 bot.on('contact', handlePhone)
-bot.on('text', async ctx => {
-	const userId = String(ctx.from!.id)
-	const session = sessions.get(userId)
 
-	if (!session || !session.startTime) return
+bot.on('text', async (ctx) => {
+  const userId = String(ctx.from!.id);
+  const session = sessions.get(userId);
 
-	// Если ждем номер телефона и пользователь прислал текст, попробуем его распознать
-	if (!session.phone && /^[\d+\s()-]{6,20}$/.test(ctx.message.text.trim())) {
-		// простой формат проверки номера
-		session.phone = ctx.message.text.trim()
-		sessions.set(userId, session)
-		ctx.reply('Спасибо! Теперь введите ваш email для подтверждения брони:')
-		session.waitingEmail = true
-		sessions.set(userId, session)
-		return
-	}
+  if (!session || !session.startTime) return;
 
-	// Иначе проверяем email, если ждем email
-	if (session.waitingEmail) {
-		const email = ctx.message.text.trim()
-		if (!/^[\w.-]+@[\w.-]+\.\w+$/.test(email)) {
-			return ctx.reply('❌ Неверный формат email. Попробуйте снова:')
-		}
+  // если ждем телефон, а пользователь прислал текст
+  if (!session.phone) {
+    const phone = ctx.message.text.trim();
+    if (!isValidPhone(phone)) {
+      return ctx.reply(
+        '❌ Неверный формат номера телефона.\n' +
+        'Введите номер телефона в одном из следующих форматов:\n' +
+        '+0504122905, 0504122905, +050-412-29-05, 050-412-29-05'
+      );
+    }
 
-		session.email = email
-		delete session.waitingEmail
-		sessions.set(userId, session)
+    session.phone = phone;
+    session.waitingEmail = true;
+    sessions.set(userId, session);
+
+    return ctx.reply('Спасибо! Теперь введите ваш email для подтверждения брони:');
+  }
+
+  // если уже есть телефон и ждём email
+  if (session.waitingEmail) {
+    const email = ctx.message.text.trim();
+    if (!/^[\w.-]+@[\w.-]+\.\w+$/.test(email)) {
+      return ctx.reply('❌ Неверный формат email. Попробуйте снова:');
+    }
+
+    session.email = email;
+    delete session.waitingEmail;
+    sessions.set(userId, session);
 
 		// создаем событие в Google Calendar
 		const start = DateTime.fromJSDate(session.startTime, { zone: TIMEZONE })
