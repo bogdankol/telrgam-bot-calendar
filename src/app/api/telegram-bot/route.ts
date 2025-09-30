@@ -102,6 +102,25 @@ async function getAvailableSlotsForDay(day: DateTime) {
 	return slots
 }
 
+// --- функция обработки контакта ---
+function handlePhone(ctx: any) {
+	const userId = String(ctx.from!.id)
+	const session = sessions.get(userId)
+	if (!session || !session.startTime) {
+		return ctx.reply('Сначала выберите день и время встречи через /book.')
+	}
+
+	const contact = ctx.message.contact
+	if (contact?.phone_number) {
+		session.phone = contact.phone_number
+		session.name =
+			contact.first_name + (contact.last_name ? ' ' + contact.last_name : '')
+		session.waitingEmail = true
+		sessions.set(userId, session)
+		ctx.reply('Спасибо! Теперь введите ваш email для подтверждения брони:')
+	}
+}
+
 // --- Команды бота ---
 bot.start(ctx => {
 	ctx.reply('Привет! 👋 Напиши /book, чтобы забронировать встречу.')
@@ -144,101 +163,81 @@ bot.action(/slot_(\d+)/, ctx => {
 })
 
 // --- Получение контакта ---
-bot.on('contact', ctx => {
-	const userId = String(ctx.from!.id)
-	const session = sessions.get(userId)
-
-	if (!session || !session.startTime) {
-		return ctx.reply('Сначала выберите день и время встречи через /book.')
-	}
-
-	// Сохраняем контакт
-	const contact = ctx.message.contact
-	session.phone = contact.phone_number
-	session.name =
-		contact.first_name + (contact.last_name ? ' ' + contact.last_name : '')
-	sessions.set(userId, session)
-
-	// После контакта бот всегда ожидает email
-	session.waitingEmail = true // флаг, что теперь ждем email
-	sessions.set(userId, session)
-
-	ctx.reply('Спасибо! Теперь введите ваш email для подтверждения брони:')
-})
-
-// --- Обработка email и создание события ---
+bot.on('contact', handlePhone)
 bot.on('text', async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 
-	if (!session) {
-		return ctx.reply(
-			'Пожалуйста, сначала выберите день и время встречи через /book.',
-		)
-	}
-	if (!session.startTime) {
-		return ctx.reply('Сначала выберите время встречи, нажав на слот.')
-	}
-	if (!session.phone) {
-		return ctx.reply(
-			'Пожалуйста, сначала отправьте свой контакт (номер телефона).',
-		)
-	}
-	if (!session.waitingEmail) {
-		return ctx.reply(
-			'Вы уже отправляли email или нужно сначала выбрать контакт.',
-		)
+	if (!session || !session.startTime) return
+
+	// Если ждем номер телефона и пользователь прислал текст, попробуем его распознать
+	if (!session.phone && /^[\d+\s()-]{6,20}$/.test(ctx.message.text.trim())) {
+		// простой формат проверки номера
+		session.phone = ctx.message.text.trim()
+		sessions.set(userId, session)
+		ctx.reply('Спасибо! Теперь введите ваш email для подтверждения брони:')
+		session.waitingEmail = true
+		sessions.set(userId, session)
+		return
 	}
 
-	const email = ctx.message.text.trim()
-	if (!/^[\w.-]+@[\w.-]+\.\w+$/.test(email)) {
-		return ctx.reply('❌ Неверный формат email. Попробуйте снова:')
-	}
-
-	session.email = email
-	delete session.waitingEmail // email получен, больше не ждем
-	sessions.set(userId, session)
-
-	const start = DateTime.fromJSDate(session.startTime, { zone: TIMEZONE })
-	const end = start.plus({ minutes: 60 })
-
-	try {
-		const event: calendar_v3.Schema$Event = {
-			summary: 'Консультация',
-			description: `Забронировано через Telegram-бота.\nКлиент: ${session.name}\nТелефон: ${session.phone}\nEmail: ${session.email}\n💰 Статус оплаты: НЕ оплачено`,
-			start: { dateTime: start.toISO(), timeZone: TIMEZONE },
-			end: { dateTime: end.toISO(), timeZone: TIMEZONE },
-			conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
+	// Иначе проверяем email, если ждем email
+	if (session.waitingEmail) {
+		const email = ctx.message.text.trim()
+		if (!/^[\w.-]+@[\w.-]+\.\w+$/.test(email)) {
+			return ctx.reply('❌ Неверный формат email. Попробуйте снова:')
 		}
 
-		const res = await calendar.events.insert({
-			calendarId: CALENDAR_ID,
-			requestBody: event,
-			conferenceDataVersion: 1,
-		})
+		session.email = email
+		delete session.waitingEmail
+		sessions.set(userId, session)
 
-		const paymentLink = 'https://send.monobank.ua/jar/XXXXXXXXX'
-		const amount = 800
+		// создаем событие в Google Calendar
+		const start = DateTime.fromJSDate(session.startTime, { zone: TIMEZONE })
+		const end = start.plus({ minutes: 60 })
 
-		await ctx.reply(
-			`✅ Встреча забронирована!\n` +
-				`📅 Дата и время: ${start.toFormat('dd.MM.yyyy HH:mm')}\n` +
-				(res.data.hangoutLink
-					? `🔗 Ссылка на Google Meet: ${res.data.hangoutLink}\n`
-					: `ℹ️ Ссылка появится в приглашении.\n`) +
-				`📞 Телефон: ${session.phone}\n` +
-				`👤 Имя: ${session.name}\n` +
-				`📧 Email: ${session.email}\n\n` +
-				`💰 Статус оплаты: ❌ НЕ оплачено\n` +
-				`Сумма: ${amount} грн\n` +
-				`👉 [Оплатить](${paymentLink})`,
-			{ parse_mode: 'Markdown' },
-		)
+		try {
+			const event: calendar_v3.Schema$Event = {
+				summary: 'Консультация',
+				description: `Забронировано через Telegram-бота.\nКлиент: ${
+					session.name || '—'
+				}\nТелефон: ${session.phone}\nEmail: ${
+					session.email
+				}\n💰 Статус оплаты: НЕ оплачено`,
+				start: { dateTime: start.toISO(), timeZone: TIMEZONE },
+				end: { dateTime: end.toISO(), timeZone: TIMEZONE },
+				conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
+			}
 
-		sessions.delete(userId)
-	} catch (err) {
-		console.error('Ошибка при создании события:', err)
-		await ctx.reply('⚠️ Не удалось забронировать встречу. Попробуйте позже.')
+			const res = await calendar.events.insert({
+				calendarId: CALENDAR_ID,
+				requestBody: event,
+				conferenceDataVersion: 1,
+			})
+
+			const paymentLink = 'https://send.monobank.ua/jar/XXXXXXXXX'
+			const amount = 800
+
+			await ctx.reply(
+				`✅ Встреча забронирована!\n` +
+					`📅 Дата и время: ${start.toFormat('dd.MM.yyyy HH:mm')}\n` +
+					(res.data.hangoutLink
+						? `🔗 Ссылка на Google Meet: ${res.data.hangoutLink}\n`
+						: `ℹ️ Ссылка появится в приглашении.\n`) +
+					`📞 Телефон: ${session.phone}\n` +
+					`👤 Имя: ${session.name || '—'}\n` +
+					`📧 Email: ${session.email}\n\n` +
+					`💰 Статус оплаты: ❌ НЕ оплачено\n` +
+					`Сумма: ${amount} грн\n` +
+					`👉 [Оплатить](${paymentLink})`,
+				{ parse_mode: 'Markdown' },
+			)
+
+			sessions.delete(userId)
+		} catch (err) {
+			console.error('Ошибка при создании события:', err)
+			await ctx.reply('⚠️ Не удалось забронировать встречу. Попробуйте позже.')
+		}
 	}
 })
 
