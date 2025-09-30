@@ -1,7 +1,7 @@
 import { Telegraf, Markup } from "telegraf"
 import { google } from "googleapis"
-import { NextRequest, NextResponse } from 'next/server'
-import { DateTime } from 'luxon'
+import { NextRequest, NextResponse } from "next/server"
+import { DateTime } from "luxon"
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
 const bot = new Telegraf(BOT_TOKEN)
@@ -20,10 +20,13 @@ const auth = new google.auth.JWT({
 })
 const calendar = google.calendar({ version: "v3", auth })
 
-// Простая "сессия" в памяти (для demo; в продакшене — Redis или БД)
-const sessions = new Map<string, { startTime?: Date; phone?: string; name?: string; email?: string }>()
+// Простая "сессия" в памяти
+const sessions = new Map<
+  string,
+  { startTime?: Date; phone?: string; name?: string; email?: string }
+>()
 
-// --- Получение доступных дней с пропуском выходных ---
+// --- Получение доступных дней ---
 async function getAvailableDays(daysAhead = 30, minDays = 10) {
   const now = new Date()
   const availableDays: Date[] = []
@@ -47,7 +50,7 @@ async function getAvailableDays(daysAhead = 30, minDays = 10) {
   return availableDays
 }
 
-// --- Получение свободных слотов на конкретный день ---
+// --- Получение слотов ---
 async function getAvailableSlotsForDay(day: Date) {
   const slots: { start: Date; label: string }[] = []
   const startHour = 11
@@ -75,13 +78,18 @@ async function getAvailableSlotsForDay(day: Date) {
     if (!events.data.items || events.data.items.length === 0) {
       slots.push({
         start: new Date(slotStart),
-        label: slotStart.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
+        label: slotStart.toLocaleTimeString("ru-RU", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       })
 
       meetingsCount++
       slotStart = new Date(slotEnd.getTime() + breakAfterMeeting * 60 * 1000)
     } else {
-      slotStart = new Date(slotStart.getTime() + (meetingDuration + breakAfterMeeting) * 60 * 1000)
+      slotStart = new Date(
+        slotStart.getTime() + (meetingDuration + breakAfterMeeting) * 60 * 1000
+      )
     }
   }
 
@@ -95,10 +103,9 @@ bot.start((ctx) => {
 
 bot.command("book", async (ctx) => {
   const days = await getAvailableDays(30)
-  const buttons = days.map(d => [Markup.button.callback(
-    d.toLocaleDateString("ru-RU"),
-    `day_${d.toISOString()}`
-  )])
+  const buttons = days.map((d) => [
+    Markup.button.callback(d.toLocaleDateString("ru-RU"), `day_${d.toISOString()}`),
+  ])
   ctx.reply("Выберите день для встречи:", Markup.inlineKeyboard(buttons))
 })
 
@@ -108,25 +115,30 @@ bot.action(/day_(.+)/, async (ctx) => {
   const slots = await getAvailableSlotsForDay(day)
   if (slots.length === 0) return ctx.reply("Нет доступных слотов на этот день.")
 
-  const buttons = slots.map(s => [Markup.button.callback(s.label, `slot_${s.start.getTime()}`)])
+  const buttons = slots.map((s) => [
+    Markup.button.callback(s.label, `slot_${s.start.getTime()}`),
+  ])
   ctx.reply("Выберите удобное время:", Markup.inlineKeyboard(buttons))
 })
 
 // --- Выбор слота и запрос контакта ---
 bot.action(/slot_(\d+)/, (ctx) => {
   const timestamp = parseInt(ctx.match[1])
-  const startTime = new Date(timestamp)
-  sessions.set(String(ctx.from!.id), { startTime })
+
+  // Делаем Luxon DateTime сразу в Киеве
+  const startTime = DateTime.fromMillis(timestamp, { zone: TIMEZONE })
+
+  sessions.set(String(ctx.from!.id), { startTime: startTime.toJSDate() })
 
   ctx.reply(
     "Пожалуйста, поделитесь своим номером телефона для подтверждения брони:",
-    Markup.keyboard([Markup.button.contactRequest("Отправить контакт")])
+    Markup.keyboard([Markup.button.contactRequest("📱 Отправить контакт")])
       .oneTime()
       .resize()
   )
 })
 
-// --- Получение контакта (номер телефона) ---
+// --- Получение контакта ---
 bot.on("contact", (ctx) => {
   const userId = String(ctx.from!.id)
   const session = sessions.get(userId)
@@ -134,7 +146,8 @@ bot.on("contact", (ctx) => {
 
   const contact = ctx.message.contact
   session.phone = contact.phone_number
-  session.name = contact.first_name + (contact.last_name ? " " + contact.last_name : "")
+  session.name =
+    contact.first_name + (contact.last_name ? " " + contact.last_name : "")
   sessions.set(userId, session)
 
   ctx.reply("Спасибо! Теперь введите ваш email для подтверждения брони:")
@@ -144,7 +157,7 @@ bot.on("contact", (ctx) => {
 bot.on("text", async (ctx) => {
   const userId = String(ctx.from!.id)
   const session = sessions.get(userId)
-  if (!session || !session.startTime || !session.phone) return // ждем сначала контакт
+  if (!session || !session.startTime || !session.phone) return // ждем контакт
 
   const email = ctx.message.text.trim()
   if (!/^[\w.-]+@[\w.-]+\.\w+$/.test(email)) {
@@ -154,15 +167,16 @@ bot.on("text", async (ctx) => {
   session.email = email
   sessions.set(userId, session)
 
-  const start = DateTime.fromJSDate(session.startTime).setZone(TIMEZONE)
+    // тут берём дату как Luxon в зоне Киев
+  const start = DateTime.fromJSDate(session.startTime, { zone: TIMEZONE })
   const end = start.plus({ minutes: 60 })
 
   try {
     const event = {
       summary: "Консультация",
-      description: `Забронировано через Telegram-бота.\nКлиент: ${session.name}\nТелефон: ${session.phone}\nEmail: ${session.email}`,
-      start: { dateTime: start.toISO({ suppressMilliseconds: true }), timeZone: TIMEZONE },
-      end: { dateTime: end.toISO({ suppressMilliseconds: true }), timeZone: TIMEZONE },
+      description: `Забронировано через Telegram-бота.\nКлиент: ${session.name}\nТелефон: ${session.phone}\nEmail: ${session.email}\n💰 Статус оплаты: НЕ оплачено`,
+      start: { dateTime: start.toISO(), timeZone: TIMEZONE },
+      end: { dateTime: end.toISO(), timeZone: TIMEZONE },
       conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
     }
 
@@ -172,15 +186,23 @@ bot.on("text", async (ctx) => {
       conferenceDataVersion: 1,
     })
 
+    // --- Ссылка на оплату (пример для Monobank Invoice) ---
+    const paymentLink = `https://send.monobank.ua/jar/XXXXXXXXX` // вставь свою ссылку
+    const amount = 800
+
     await ctx.reply(
-      `✅ Встреча успешно забронирована!\n` +
-      `📅 Дата и время: ${session.startTime.toLocaleString("ru-RU")}\n` +
-      (response.data.hangoutLink
-        ? `🔗 Ссылка на Google Meet: ${response.data.hangoutLink}\n`
-        : `ℹ️ Ссылка появится в приглашении.\n`) +
-      `📞 Телефон: ${session.phone}\n` +
-      `👤 Имя: ${session.name}\n` +
-      `📧 Email: ${session.email}`
+      `✅ Встреча забронирована!\n` +
+        `📅 Дата и время: ${session.startTime.toLocaleString("ru-RU")}\n` +
+        (response.data.hangoutLink
+          ? `🔗 Ссылка на Google Meet: ${response.data.hangoutLink}\n`
+          : `ℹ️ Ссылка появится в приглашении.\n`) +
+        `📞 Телефон: ${session.phone}\n` +
+        `👤 Имя: ${session.name}\n` +
+        `📧 Email: ${session.email}\n\n` +
+        `💰 Статус оплаты: ❌ НЕ оплачено\n` +
+        `Сумма: ${amount} грн\n` +
+        `👉 [Оплатить](${paymentLink})`,
+      { parse_mode: "Markdown" }
     )
 
     sessions.delete(userId)
