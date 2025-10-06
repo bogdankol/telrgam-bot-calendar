@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { DateTime } from 'luxon'
 import { message } from 'telegraf/filters'
 import { envCheck } from '@/utils/server-utils'
+import { createNewInvoiceLink } from '@/app/actions/server-actions'
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
 const bot = new Telegraf(BOT_TOKEN)
@@ -236,8 +237,8 @@ bot.on('text', async (ctx) => {
     }
 
     try {
-      const res = await fetch(process.env.BASIC_URL + '/api/mono-form-link')
-      console.log({res, basicUrl: process.env.BASIC_URL})
+      const res = await createNewInvoiceLink()
+      console.log({res})
     } catch(err: unknown) {
       throw Error(`Invoice creation error:', ${err instanceof Error ? err.message : err}`)
     }

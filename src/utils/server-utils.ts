@@ -7,6 +7,7 @@ export async function envCheck() {
 	const calendarId = !!process.env.GOOGLE_CALENDAR_ID
 	const googleServiceClientMail = !!process.env.GOOGLE_CLIENT_EMAIL
 	const googlePrivateKey = !!process.env.GOOGLE_PRIVATE_KEY
+  const basicUrl = !!process.env.BASIC_URL
 
 	if (
 		!monoKeyAvailable ||
@@ -14,7 +15,8 @@ export async function envCheck() {
 		!telegramToken ||
 		!calendarId ||
 		!googlePrivateKey ||
-		!googleServiceClientMail
+		!googleServiceClientMail ||
+    !basicUrl
 	) {
 		console.error('One of variables is missing')
     return 
