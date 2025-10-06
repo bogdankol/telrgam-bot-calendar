@@ -237,7 +237,7 @@ bot.on('text', async (ctx) => {
 
     try {
       const res = await fetch(process.env.BASIC_URL + '/api/mono-form-link')
-      console.log({res})
+      console.log({res, basicUrl: process.env.BASIC_URL})
     } catch(err: unknown) {
       throw Error(`Invoice creation error:', ${err instanceof Error ? err.message : err}`)
     }
