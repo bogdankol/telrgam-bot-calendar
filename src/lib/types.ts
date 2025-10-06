@@ -1,0 +1,1 @@
+export type TPaymentGeneratedLink = { invoiceId: string; pageUrl: string }

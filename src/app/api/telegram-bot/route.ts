@@ -223,20 +223,26 @@ bot.on('text', async (ctx) => {
 		// создаем событие в Google Calendar
 		const start = DateTime.fromJSDate(session.startTime, { zone: TIMEZONE })
 		const end = start.plus({ minutes: 60 })
+    const event: calendar_v3.Schema$Event = {
+      summary: 'Мітинг із психологом Ольгою Молодчинкою',
+      description: `Заброньовано через телеграм-бота.\nДан клієнта: ${
+        session.name || '—'
+      }\nТелефон: ${session.phone}\nEmail: ${
+        session.email
+      }\n💰 Статус оплати консультації: не оплачено`,
+      start: { dateTime: start.toISO(), timeZone: TIMEZONE },
+      end: { dateTime: end.toISO(), timeZone: TIMEZONE },
+      conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
+    }
+
+    try {
+      const res = await fetch('/api/mono-form-link')
+      console.log({res})
+    } catch(err: unknown) {
+      throw Error(`Invoice creation error:', ${err instanceof Error ? err.message : err}`)
+    }
 
 		try {
-			const event: calendar_v3.Schema$Event = {
-				summary: 'Мітинг із психологом Ольгою Молодчинкою',
-				description: `Заброньовано через телеграм-бота.\nДан клієнта: ${
-					session.name || '—'
-				}\nТелефон: ${session.phone}\nEmail: ${
-					session.email
-				}\n💰 Статус оплати консультації: не оплачено`,
-				start: { dateTime: start.toISO(), timeZone: TIMEZONE },
-				end: { dateTime: end.toISO(), timeZone: TIMEZONE },
-				conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
-			}
-
 			const res = await calendar.events.insert({
 				calendarId: CALENDAR_ID,
 				requestBody: event,
@@ -251,7 +257,7 @@ bot.on('text', async (ctx) => {
 					`📅 Дата та час: ${start.toFormat('dd.MM.yyyy HH:mm')}\n` +
 					(res.data.hangoutLink
 						? `🔗 Посилання на Google Meet: ${res.data.hangoutLink}\n`
-						: `ℹ️ Посилання буде вам надіслано трохи згодом.\n`) +
+						: `ℹ️ Запрошення буде вам надіслано трохи згодом на вказаний вами email.\n`) +
 					`📞 Телефон: ${session.phone}\n` +
 					`👤 Ім'я: ${session.name || '—'}\n` +
 					`📧 Email: ${session.email}\n\n` +
@@ -280,7 +286,6 @@ export async function POST(req: NextRequest) {
 		return NextResponse.json({ error: 'failed' }, { status: 500 })
 	}
 }
-
 
 export async function GET() {
   return NextResponse.json({ message: 'bot works' })
