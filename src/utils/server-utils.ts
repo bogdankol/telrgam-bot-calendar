@@ -15,8 +15,10 @@ export async function envCheck() {
 		!calendarId ||
 		!googlePrivateKey ||
 		!googleServiceClientMail
-	)
-		throw Error('One of variables is missing')
+	) {
+		console.error('One of variables is missing')
+    return 
+  }
 
 	return true
 }
