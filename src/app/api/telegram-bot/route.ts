@@ -136,8 +136,8 @@ function isValidPhone(phone: string) {
 }
 
 // --- Команды бота ---
-bot.start(ctx => {
-  const allEnvIsPresent = envCheck()
+bot.start(async ctx => {
+  const allEnvIsPresent = await envCheck()
   console.log({allEnvIsPresent})
   if(!allEnvIsPresent) {
     ctx.reply(`Доброго здоров'ячка! Наразі цей бот не працює, але не хвилюйтесь, через деякий час він обіцяє запрацювати.`)
