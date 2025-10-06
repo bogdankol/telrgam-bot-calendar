@@ -3,6 +3,7 @@ import { google, calendar_v3 } from 'googleapis'
 import { NextRequest, NextResponse } from 'next/server'
 import { DateTime } from 'luxon'
 import { message } from 'telegraf/filters'
+import { envCheck } from '@/utils/server-utils'
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
 const bot = new Telegraf(BOT_TOKEN)
@@ -136,6 +137,8 @@ function isValidPhone(phone: string) {
 
 // --- Команды бота ---
 bot.start(ctx => {
+  const allEnvIsPresent = envCheck()
+  if(!allEnvIsPresent) return ctx.reply(`Доброго здоров'ячка! Наразі цей бот не працює, але не хвилюйтесь, через деякий час він обіцяє запрацювати.`)
 	ctx.reply(`Доброго здоров'ячка! 👋 Натисніть на /book, для того, щоб забронювати зустріч.`)
 })
 
