@@ -2,6 +2,7 @@ import { Telegraf, Markup } from 'telegraf'
 import { google, calendar_v3 } from 'googleapis'
 import { NextRequest, NextResponse } from 'next/server'
 import { DateTime } from 'luxon'
+import { message } from 'telegraf/filters'
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
 const bot = new Telegraf(BOT_TOKEN)
@@ -143,7 +144,7 @@ bot.command('book', async ctx => {
 	const buttons = days.map(d => [
 		Markup.button.callback(d.toFormat('dd.MM.yyyy'), `day_${d.toISO()}`),
 	])
-	ctx.reply('Выберите день для встречи:', Markup.inlineKeyboard(buttons))
+	ctx.reply('Виберіть день для зустрічі:', Markup.inlineKeyboard(buttons))
 })
 
 // --- Выбор дня ---
@@ -151,13 +152,13 @@ bot.action(/day_(.+)/, async ctx => {
 	const day = DateTime.fromISO(ctx.match[1]).setZone(TIMEZONE)
 	const slots = await getAvailableSlotsForDay(day)
 
-	if (slots.length === 0) return ctx.reply('Нет доступных слотов на этот день.')
+	if (slots.length === 0) return ctx.reply('Немає доступних часів на цей день.')
 
 	const buttons = slots.map(s => [
 		Markup.button.callback(s.label, `slot_${s.start.toMillis()}`),
 	])
 
-	ctx.reply('Выберите удобное время:', Markup.inlineKeyboard(buttons))
+	ctx.reply('Виберіть зручний час:', Markup.inlineKeyboard(buttons))
 })
 
 // --- Выбор слота и запрос контакта ---
@@ -188,8 +189,8 @@ bot.on('text', async (ctx) => {
     const phone = ctx.message.text.trim();
     if (!isValidPhone(phone)) {
       return ctx.reply(
-        '❌ Неверный формат номера телефона.\n' +
-        'Введите номер телефона в одном из следующих форматов:\n' +
+        '❌ Невірний формат телефонного номеру.\n' +
+        'Введіть номер телефону в одному із наступних форматів:\n' +
         '+0504122905, 0504122905, +050-412-29-05, 050-412-29-05'
       );
     }
@@ -198,7 +199,7 @@ bot.on('text', async (ctx) => {
     session.waitingEmail = true;
     sessions.set(userId, session);
 
-    return ctx.reply('Дякую! Теперь введите ваш email для подтверждения брони:');
+    return ctx.reply('Дякую! Тепер введіть ваш email для підтвердження броні:');
   }
 
   // если уже есть телефон и ждём email
@@ -271,4 +272,9 @@ export async function POST(req: NextRequest) {
 		console.error('Telegram webhook error:', err)
 		return NextResponse.json({ error: 'failed' }, { status: 500 })
 	}
+}
+
+
+export async function GET() {
+  return NextResponse.json({ message: 'bot works' })
 }
