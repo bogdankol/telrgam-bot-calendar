@@ -39,6 +39,12 @@ export const sessions = new Map<
 bot.start(async ctx => {
   const allEnvIsPresent = await envCheck()
 
+  console.log({
+    CALENDAR_ID,
+    GOOGLE_CLIENT_EMAIL,
+    GOOGLE_PRIVATE_KEY
+  })
+
   if(!allEnvIsPresent) {
     ctx.reply(`Доброго здоров'ячка! Наразі цей бот не працює, але не хвилюйтесь, через деякий час він обіцяє запрацювати.`)
   } else {
