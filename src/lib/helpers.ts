@@ -1,3 +1,4 @@
+'use server'
 import { sessions, calendar } from '@/app/api/telegram-bot/route'
 import { DateTime } from 'luxon'
 import { TIMEZONE } from './vars'
