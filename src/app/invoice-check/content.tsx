@@ -39,7 +39,7 @@ export default function Content({ invoiceId }: { invoiceId?: string }) {
         transformIntoArrayOfCortages(res)
         return
       }
-      
+
 			const resultOfValidation = await trigger()
 			if (!resultOfValidation) return
 			const { invoiceId: inputInvoiceId } = getValues()
@@ -75,10 +75,6 @@ export default function Content({ invoiceId }: { invoiceId?: string }) {
 	return (
 		<div className='flex space-x-5 p-5'>
 			<div className='w-1/2 space-y-4'>
-				<h3>
-					This container will display data obtained by pressing *Check
-					invoice&apos;s status* button. While not it is empty.
-				</h3>
 				<Form {...formHook}>
 					<form
 						onSubmit={formHook.handleSubmit(onSubmitHandler)}
