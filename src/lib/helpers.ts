@@ -2,6 +2,8 @@ import { sessions, calendar } from '@/app/api/telegram-bot/route'
 import { DateTime } from 'luxon'
 import { TIMEZONE } from './vars'
 
+const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!
+
 // --- Получение доступных дней ---
 export async function getAvailableDays(daysAhead = 30, minDays = 10) {
 	const now = DateTime.now().setZone(TIMEZONE)
@@ -45,7 +47,7 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 		const slotEnd = slotStart.plus({ minutes: meetingDuration })
 
 		const res = await calendar.events.list({
-			// @ts-expect-error types error
+      // @ts-expect-error type error
 			calendarId: CALENDAR_ID,
 			timeMin: slotStart.toISO(),
 			timeMax: slotEnd.toISO(),
