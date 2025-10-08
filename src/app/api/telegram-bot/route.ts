@@ -2,19 +2,18 @@ import { Telegraf, Markup } from 'telegraf'
 import { google, calendar_v3 } from 'googleapis'
 import { NextRequest, NextResponse } from 'next/server'
 import { DateTime } from 'luxon'
-import { message } from 'telegraf/filters'
 import { envCheck } from '@/utils/server-utils'
-import { createNewInvoiceLink } from '@/app/actions/server-actions'
+import { createNewInvoiceLink } from '@/actions/server-actions'
+import { TIMEZONE, SCOPES, invoiceCheckUrl } from '@/lib/vars'
+import { getAvailableDays, getAvailableSlotsForDay, handlePhone, isValidPhone } from '@/lib/helpers'
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
 const bot = new Telegraf(BOT_TOKEN)
 
 // --- Google Calendar настройка ---
-const SCOPES = ['https://www.googleapis.com/auth/calendar']
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!
 const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL!
 const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, '\n')
-const TIMEZONE = 'Europe/Kiev'
 
 const auth = new google.auth.JWT({
 	email: GOOGLE_CLIENT_EMAIL,
@@ -22,10 +21,10 @@ const auth = new google.auth.JWT({
 	scopes: SCOPES,
 })
 
-const calendar = google.calendar({ version: 'v3', auth })
+export const calendar = google.calendar({ version: 'v3', auth })
 
 // Простая "сессия" в памяти
-const sessions = new Map<
+export const sessions = new Map<
 	string,
 	{
 		startTime?: Date
@@ -36,110 +35,10 @@ const sessions = new Map<
 	}
 >()
 
-// --- Получение доступных дней ---
-async function getAvailableDays(daysAhead = 30, minDays = 10) {
-	const now = DateTime.now().setZone(TIMEZONE)
-	const availableDays: DateTime[] = []
-
-	for (let i = 1; i <= daysAhead; i++) {
-		const day = now.plus({ days: i })
-		const weekday = day.weekday // 1 = Monday, 7 = Sunday
-		if (weekday === 6 || weekday === 7) continue // пропускаем субботу и воскресенье
-
-		const slots = await getAvailableSlotsForDay(day)
-
-		if (slots.length > 0 || availableDays.length < minDays) {
-			availableDays.push(day)
-		}
-
-		if (availableDays.length >= minDays) break
-	}
-
-	return availableDays
-}
-
-// --- Получение слотов ---
-async function getAvailableSlotsForDay(day: DateTime) {
-	const slots: { start: DateTime; label: string }[] = []
-	const startHour = 11
-	const endHour = 19
-	const meetingDuration = 60 // мин
-	const breakAfterMeeting = 30 // мин
-	const maxMeetingsPerDay = 5
-
-	let slotStart = day.set({
-		hour: startHour,
-		minute: 0,
-		second: 0,
-		millisecond: 0,
-	})
-	let slotCount = 0 // учитываем все слоты, чтобы не превысить лимит
-
-	while (slotCount < maxMeetingsPerDay) {
-		const slotEnd = slotStart.plus({ minutes: meetingDuration })
-
-		const res = await calendar.events.list({
-			// @ts-expect-error types error
-			calendarId: CALENDAR_ID,
-			timeMin: slotStart.toISO(),
-			timeMax: slotEnd.toISO(),
-			singleEvents: true,
-		})
-
-		// @ts-expect-error type error
-		const events = res.data.items || []
-
-		if (events.length === 0) {
-			slots.push({
-				start: slotStart,
-				label: slotStart.toFormat('HH:mm'),
-			})
-		}
-
-		slotCount++ // увеличиваем счетчик **всегда**, независимо от занятости слота
-		slotStart = slotEnd.plus({ minutes: breakAfterMeeting })
-
-		if (slotStart.hour >= endHour) break
-	}
-
-	return slots
-}
-
-// --- функция обработки контакта ---
-function handlePhone(ctx: any) {
-	const userId = String(ctx.from!.id)
-	const session = sessions.get(userId)
-	if (!session || !session.startTime) {
-		return ctx.reply('Для початку виберіть день та час зустрічі через /book.')
-	}
-
-	const contact = ctx.message.contact
-	if (contact?.phone_number) {
-		session.phone = contact.phone_number
-		session.name =
-			contact.first_name + (contact.last_name ? ' ' + contact.last_name : '')
-		session.waitingEmail = true
-		sessions.set(userId, session)
-		ctx.reply('Дякую! тепер введіть email на який буде надіслано запрошення:')
-	}
-}
-
-// tell phone number check
-function isValidPhone(phone: string) {
-  // убираем пробелы и дефисы для проверки
-  const cleaned = phone.replace(/[\s-]/g, '');
-
-  // проверяем на цифры и максимум один +
-  if (/[^+\d]/.test(cleaned)) return false; // есть буквы или другие символы
-  if ((cleaned.match(/\+/g) || []).length > 1) return false; // больше одного +
-  if (!/^\+?\d{9,15}$/.test(cleaned)) return false; // длина номера
-  return true;
-}
-
 // --- Команды бота ---
 bot.start(async ctx => {
   const allEnvIsPresent = await envCheck()
-  console.log({allEnvIsPresent})
+
   if(!allEnvIsPresent) {
     ctx.reply(`Доброго здоров'ячка! Наразі цей бот не працює, але не хвилюйтесь, через деякий час він обіцяє запрацювати.`)
   } else {
@@ -221,25 +120,29 @@ bot.on('text', async (ctx) => {
     delete session.waitingEmail;
     sessions.set(userId, session);
 
-		// создаем событие в Google Calendar
-		const start = DateTime.fromJSDate(session.startTime, { zone: TIMEZONE })
-		const end = start.plus({ minutes: 60 })
-    const event: calendar_v3.Schema$Event = {
-      summary: 'Мітинг із психологом Ольгою Молодчинкою',
-      description: `Заброньовано через телеграм-бота.\nДан клієнта: ${
-        session.name || '—'
-      }\nТелефон: ${session.phone}\nEmail: ${
-        session.email
-      }\n💰 Статус оплати консультації: не оплачено`,
-      start: { dateTime: start.toISO(), timeZone: TIMEZONE },
-      end: { dateTime: end.toISO(), timeZone: TIMEZONE },
-      conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
-    }
-
     const invoiceData = await createNewInvoiceLink()
 
     if(!invoiceData) {
       await ctx.reply('Помилка при створенні зустрічі. Будь ласка, спробуйте пізніше')
+    }
+
+    // создаем событие в Google Calendar
+		const start = DateTime.fromJSDate(session.startTime, { zone: TIMEZONE })
+		const end = start.plus({ minutes: 60 })
+    const event: calendar_v3.Schema$Event = {
+      summary: 'Мітинг із психологом Ольгою Енгельс',
+      description: `Заброньовано через телеграм-бота.\nДані клієнта: ${
+        session.name || '—'
+      }\nТелефон: ${session.phone}\nEmail: ${
+        session.email
+      }\n💰 Статус оплати консультації: не оплачено\n
+        посилання на інвойс: ${invoiceData?.pageUrl}, \n
+        айдішник інвойсу: ${invoiceData?.invoiceId},
+        посилання, де можна перевірити чи оплачений інвойс: ${process.env.BASIC_URL + invoiceCheckUrl}
+      `,
+      start: { dateTime: start.toISO(), timeZone: TIMEZONE },
+      end: { dateTime: end.toISO(), timeZone: TIMEZONE },
+      conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
     }
 
 		try {
@@ -263,7 +166,7 @@ bot.on('text', async (ctx) => {
 					`📧 Email: ${session.email}\n\n` +
 					`💰 Статус оплати: ❌ не оплачено\n` +
 					`Сума: ${amount} грн\n` +
-					`👉 Для оплати перейдіть за посиланням(${paymentLink}). Дане посилання буде доступне на протязі 24 годин. Оплати, не то накреп нашлю!!!`,
+					`👉 Для оплати перейдіть за посиланням(${paymentLink}). Дане посилання буде доступне на протязі 24 годин. Оплати, не то понос нашлю!!!`,
 				{ parse_mode: 'Markdown' },
 			)
 

@@ -1,5 +1,9 @@
-import { TPaymentGeneratedLink } from '@/lib/types'
+'use server'
+import { TCheckInvoiceStatus, TPaymentGeneratedLink } from '@/lib/types'
 import { envCheck } from '@/utils/server-utils'
+
+const monoKey = process.env.MONO_API_TOKEN_TEST!
+const monoBasicUrl = process.env.MONO_API_BASIC_URL!
 
 export async function createNewInvoiceLink(): Promise<TPaymentGeneratedLink | undefined> {
 
@@ -37,4 +41,23 @@ export async function createNewInvoiceLink(): Promise<TPaymentGeneratedLink | un
     return
   }
 
+}
+
+export async function getStatusOfInvoiceById(id: string): Promise<TCheckInvoiceStatus | undefined> {
+  await envCheck()
+  
+  try {
+    const res = await fetch(monoBasicUrl + `api/merchant/invoice/status?invoiceId=${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Token': monoKey
+      }
+    })
+    const response: TCheckInvoiceStatus = await res.json()
+    return response
+  } catch(err: unknown) {
+    console.error('Invoice creation error:', err instanceof Error ? err.message : err)
+    return 
+  }
 }
