@@ -1,7 +1,7 @@
 'use client'
 import ButtonCustom from '@/components/Button'
 import { useEffect, useState, useTransition } from 'react'
-import { TCheckInvoiceStatus, TPaymentGeneratedLink } from '@/lib/types'
+import { TCheckInvoiceStatus } from '@/lib/types'
 import InputCustom from '@/components/Input'
 import { getStatusOfInvoiceById } from '@/actions/server-actions'
 import { useForm } from 'react-hook-form'
