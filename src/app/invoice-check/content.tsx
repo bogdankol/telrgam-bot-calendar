@@ -1,6 +1,6 @@
 'use client'
 import ButtonCustom from '@/components/Button'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { TCheckInvoiceStatus, TPaymentGeneratedLink } from '@/lib/types'
 import InputCustom from '@/components/Input'
 import { getStatusOfInvoiceById } from '@/actions/server-actions'
@@ -31,11 +31,20 @@ export default function Content({ invoiceId }: { invoiceId?: string }) {
 
 	async function onSubmitHandler() {
 		startTransition(async () => {
+      if(invoiceId) {
+        const res = await getStatusOfInvoiceById(invoiceId)
+        if (!res) throw Error('An error occurred')
+
+        setInvoiceStatus(res)
+        transformIntoArrayOfCortages(res)
+        return
+      }
+      
 			const resultOfValidation = await trigger()
 			if (!resultOfValidation) return
-			const { invoiceId } = getValues()
+			const { invoiceId: inputInvoiceId } = getValues()
 
-			const res = await getStatusOfInvoiceById(invoiceId)
+			const res = await getStatusOfInvoiceById(inputInvoiceId)
 			if (!res) throw Error('An error occurred')
 
 			setInvoiceStatus(res)
@@ -53,6 +62,16 @@ export default function Content({ invoiceId }: { invoiceId?: string }) {
 
 		return arrWithInnerCortages
 	}
+
+  useEffect(() => {
+    async function f() {
+      await onSubmitHandler()
+    }
+    if(invoiceId) {
+      f()
+    }
+  }, [invoiceId])
+
 	return (
 		<div className='flex space-x-5 p-5'>
 			<div className='w-1/2 space-y-4'>
