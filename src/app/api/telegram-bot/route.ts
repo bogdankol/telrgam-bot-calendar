@@ -236,11 +236,10 @@ bot.on('text', async (ctx) => {
       conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
     }
 
-    try {
-      const res = await createNewInvoiceLink()
-      console.log({res})
-    } catch(err: unknown) {
-      throw Error(`Invoice creation error:', ${err instanceof Error ? err.message : err}`)
+    const invoiceData = await createNewInvoiceLink()
+
+    if(!invoiceData) {
+      await ctx.reply('Помилка при створенні зустрічі. Будь ласка, спробуйте пізніше')
     }
 
 		try {
@@ -250,7 +249,7 @@ bot.on('text', async (ctx) => {
 				conferenceDataVersion: 1,
 			})
 
-			const paymentLink = 'https://send.monobank.ua/jar/XXXXXXXXX'
+			const paymentLink = invoiceData?.pageUrl
 			const amount = 800
 
 			await ctx.reply(

@@ -1,8 +1,11 @@
 import { TPaymentGeneratedLink } from '@/lib/types'
 
-export async function createNewInvoiceLink() {
+export async function createNewInvoiceLink(): Promise<TPaymentGeneratedLink | undefined> {
   const monoBasicUrl = process.env.MONO_API_BASIC_URL!
   const monoToken = process.env.MONO_API_TOKEN_TEST!
+  const fee = process.env.FEE_FOR_SERVICE_IN_GRN!
+
+  const sumInCopiyka = Number(fee) * 100
 
   try {
     const res = await fetch(monoBasicUrl + 'api/merchant/invoice/create', {
@@ -12,7 +15,7 @@ export async function createNewInvoiceLink() {
         'X-Token': monoToken
       },
       body: JSON.stringify({
-        amount: 2000,
+        amount: sumInCopiyka,
         redirectUrl: `https://mono-api-test.vercel.app/success-page?userId=sdqwdsaffdad&date=${Date.now()}`,
         webhookUrl: `https://mono-api-test.vercel.app/api/mono-webhook`
       })
