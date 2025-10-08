@@ -137,7 +137,7 @@ bot.on('text', async (ctx) => {
       }\n💰 Статус оплати консультації: не оплачено\n
         посилання на інвойс: ${invoiceData?.pageUrl}, \n
         айдішник інвойсу: ${invoiceData?.invoiceId},
-        посилання, де можна перевірити чи оплачений інвойс: ${process.env.BASIC_URL + invoiceCheckUrl}
+        посилання, де можна перевірити чи оплачений інвойс: ${process.env.BASIC_URL + invoiceCheckUrl + `?invoiceId=${invoiceData?.invoiceId}`}
       `,
       start: { dateTime: start.toISO(), timeZone: TIMEZONE },
       end: { dateTime: end.toISO(), timeZone: TIMEZONE },
