@@ -1,6 +1,14 @@
 import { TPaymentGeneratedLink } from '@/lib/types'
+import { envCheck } from '@/utils/server-utils'
 
 export async function createNewInvoiceLink(): Promise<TPaymentGeneratedLink | undefined> {
+
+  const allEnvIsPresent = await envCheck()
+  console.log({allEnvIsPresent})
+  if(!allEnvIsPresent) {
+    throw Error('Some error occurred')
+  }
+  
   const monoBasicUrl = process.env.MONO_API_BASIC_URL!
   const monoToken = process.env.MONO_API_TOKEN_TEST!
   const fee = process.env.FEE_FOR_SERVICE_IN_GRN!

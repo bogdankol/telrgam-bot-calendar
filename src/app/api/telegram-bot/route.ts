@@ -110,7 +110,7 @@ function handlePhone(ctx: any) {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 	if (!session || !session.startTime) {
-		return ctx.reply('Сначала выберите день и время встречи через /book.')
+		return ctx.reply('Для початку виберіть день та час зустрічі через /book.')
 	}
 
 	const contact = ctx.message.contact
@@ -120,7 +120,7 @@ function handlePhone(ctx: any) {
 			contact.first_name + (contact.last_name ? ' ' + contact.last_name : '')
 		session.waitingEmail = true
 		sessions.set(userId, session)
-		ctx.reply('Спасибо! Теперь введите ваш email для подтверждения брони:')
+		ctx.reply('Дякую! тепер введіть email на який буде надіслано запрошення:')
 	}
 }
 
@@ -176,7 +176,7 @@ bot.action(/slot_(\d+)/, ctx => {
 	sessions.set(String(ctx.from!.id), { startTime })
 
 	ctx.reply(
-		'Пожалуйста, поделитесь своим номером телефона для подтверждения брони:',
+		'Будь ласка, поділіться своїм номером телефону або контактом для підтвердження броні:',
 		Markup.keyboard([Markup.button.contactRequest('📱 Отправить контакт')])
 			.oneTime()
 			.resize(),
