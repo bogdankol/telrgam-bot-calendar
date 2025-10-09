@@ -1,9 +1,9 @@
 export type TPaymentGeneratedLink = { invoiceId: string; pageUrl: string }
 export type TCheckInvoiceStatus = {
-  invoiceId: 'created' | 'processing' | 'hold' | 'success' | 'failure' | 'reversed' | 'expired'
-  status: string
-  failureReason: string
-  errCode: string
+  invoiceId: string 
+  status: 'created' | 'processing' | 'hold' | 'success' | 'failure' | 'reversed' | 'expired'
+  failureReason?: string
+  errCode?: string
   amount: number
   ccy: number
   finalAmount: number
@@ -11,7 +11,7 @@ export type TCheckInvoiceStatus = {
   modifiedDate: Date
   reference: string
   destination: string
-  cancelList: {
+  cancelList?: {
     status: 'processing' | 'success' | 'failure',
     amount: number,
     ccy: number,
@@ -21,7 +21,7 @@ export type TCheckInvoiceStatus = {
     rrn: string,
     extRef: string
   }[],
-  paymentInfo: {
+  paymentInfo?: {
     maskedPan: string,
     approvalCode: string,
     rrn: string,
@@ -33,10 +33,5 @@ export type TCheckInvoiceStatus = {
     fee: number,
     country: string,
     agentFee: number
-  },
-  walletData: {
-    cardToken: string,
-    walletId: string,
-    status: string
   },
 }
