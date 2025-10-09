@@ -15,8 +15,9 @@ import {
 } from '@/components/shadcn/form'
 import { zodSchema } from '@/lib/validations'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { transformIntoArrayOfCortages } from '@/lib/client-helpers'
 
-export default function Content({ invoiceId }: { invoiceId?: string }) {
+export default function Page({ invoiceId }: { invoiceId?: string }) {
 	const [invoiceStatus, setInvoiceStatus] = useState<TCheckInvoiceStatus>()
 	const [isPending, startTransition] = useTransition()
 
@@ -50,17 +51,6 @@ export default function Content({ invoiceId }: { invoiceId?: string }) {
 			setInvoiceStatus(res)
 			transformIntoArrayOfCortages(res)
 		})
-	}
-
-	function transformIntoArrayOfCortages<T extends Record<string, any>>(obj: T) {
-		const arr = Object.entries(obj)
-
-		const arrWithInnerCortages = arr.map(cortage => {
-			if (typeof cortage[1] !== 'object') return cortage
-			return [cortage[0], Object.entries(cortage[1])]
-		})
-
-		return arrWithInnerCortages
 	}
 
   useEffect(() => {
@@ -109,7 +99,7 @@ export default function Content({ invoiceId }: { invoiceId?: string }) {
 			<div className='w-1/2'>
 				{invoiceStatus && (
 					<ul className='border-4 border-blue-800 p-4 w-full'>
-						{transformIntoArrayOfCortages(invoiceStatus).map((cortage, i) => (
+						{transformIntoArrayOfCortages(invoiceStatus).map((cortage: any, i: number) => (
 							<li key={i}>
 								{cortage[0]}:{' '}
 								{typeof cortage[1] !== 'object' ? (

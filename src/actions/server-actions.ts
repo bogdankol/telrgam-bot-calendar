@@ -29,7 +29,6 @@ export async function createNewInvoiceLink(): Promise<TPaymentGeneratedLink | un
       },
       body: JSON.stringify({
         amount: sumInCopiyka,
-        redirectUrl: PROJECT_URL + '/success-failure-page?success=true',
         webhookUrl: PROJECT_URL + `/api/mono-webhook`
       })
     })
