@@ -2,8 +2,9 @@
 import { TCheckInvoiceStatus, TPaymentGeneratedLink } from '@/lib/types'
 import { envCheck } from '@/utils/server-utils'
 
-const monoKey = process.env.MONO_API_TOKEN_TEST!
-const monoBasicUrl = process.env.MONO_API_BASIC_URL!
+const MONO_API_TOKEN = process.env.MONO_API_TOKEN_TEST!
+const MONO_BASIC_URL = process.env.MONO_API_BASIC_URL!
+const PROJECT_URL = process.env.BASIC_URL!
 
 export async function createNewInvoiceLink(): Promise<TPaymentGeneratedLink | undefined> {
 
@@ -13,14 +14,14 @@ export async function createNewInvoiceLink(): Promise<TPaymentGeneratedLink | un
     throw Error('Some error occurred')
   }
   
-  const monoBasicUrl = process.env.MONO_API_BASIC_URL!
+  const MONO_BASIC_URL = process.env.MONO_API_BASIC_URL!
   const monoToken = process.env.MONO_API_TOKEN_TEST!
   const fee = process.env.FEE_FOR_SERVICE_IN_GRN!
 
   const sumInCopiyka = Number(fee) * 100
 
   try {
-    const res = await fetch(monoBasicUrl + 'api/merchant/invoice/create', {
+    const res = await fetch(MONO_BASIC_URL + 'api/merchant/invoice/create', {
       method: "POST",
       headers: {
         'Content-Type': 'application/json',
@@ -28,8 +29,8 @@ export async function createNewInvoiceLink(): Promise<TPaymentGeneratedLink | un
       },
       body: JSON.stringify({
         amount: sumInCopiyka,
-        redirectUrl: `https://mono-api-test.vercel.app/success-page?userId=sdqwdsaffdad&date=${Date.now()}`,
-        webhookUrl: `https://mono-api-test.vercel.app/api/mono-webhook`
+        redirectUrl: PROJECT_URL + '/success-failure-page?success=true',
+        webhookUrl: PROJECT_URL + `/api/mono-webhook`
       })
     })
 
@@ -47,11 +48,11 @@ export async function getStatusOfInvoiceById(id: string): Promise<TCheckInvoiceS
   await envCheck()
   
   try {
-    const res = await fetch(monoBasicUrl + `api/merchant/invoice/status?invoiceId=${id}`, {
+    const res = await fetch(MONO_BASIC_URL + `api/merchant/invoice/status?invoiceId=${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'X-Token': monoKey
+        'X-Token': MONO_API_TOKEN
       }
     })
     const response: TCheckInvoiceStatus = await res.json()
