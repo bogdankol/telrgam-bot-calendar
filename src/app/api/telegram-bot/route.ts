@@ -43,6 +43,9 @@ export const sessions = new Map<
 
 // --- Команды бота ---
 bot.start(async ctx => {
+  const userId = String(ctx.from!.id)
+	sessions.delete(userId)
+  
 	const allEnvIsPresent = await envCheck()
 	if (!allEnvIsPresent) {
 		ctx.reply(
@@ -56,6 +59,9 @@ bot.start(async ctx => {
 })
 
 bot.command('book', async ctx => {
+  const userId = String(ctx.from!.id)
+	sessions.delete(userId)
+
 	await ctx.reply('🔄 Будь ласка зачекайте, йде завантаження доступних днів...')
 
 	try {
@@ -87,7 +93,7 @@ bot.action(/day_(.+)/, async ctx => {
 			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати нове.',
 		)
 	}
-  
+
 	const day = DateTime.fromISO(ctx.match[1]).setZone(TIMEZONE)
 	const slots = await getAvailableSlotsForDay(day)
 
