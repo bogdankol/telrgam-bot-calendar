@@ -77,10 +77,23 @@ bot.action(/day_(.+)/, async ctx => {
 })
 
 // --- Выбор слота и запрос контакта ---
-bot.action(/slot_(\d+)/, ctx => {
+bot.action(/slot_(\d+)/, async ctx => {
 	const timestamp = parseInt(ctx.match[1])
-	const startTime = DateTime.fromMillis(timestamp).toJSDate() // сохраняем JS Date
-	sessions.set(String(ctx.from!.id), { startTime })
+	const startTime = DateTime.fromMillis(timestamp).setZone(TIMEZONE)
+
+	// Получаем доступные слоты заново на тот же день
+	const day = startTime.startOf('day')
+	const slots = await getAvailableSlotsForDay(day)
+
+	const slotTaken = !slots.some(s => s.start.toMillis() === timestamp)
+	if (slotTaken) {
+		return ctx.reply(
+			'❌ На жаль, вибраний час вже зайнятий. Будь ласка, оберіть інший час.'
+		)
+	}
+
+	// Если слот свободен, создаем сессию
+	sessions.set(String(ctx.from!.id), { startTime: startTime.toJSDate() })
 
 	ctx.reply(
 		'Будь ласка, поділіться своїм номером телефону (у одному з наступних форматів:\n +0504122905, +050-412-29-05, +38-050-412-29-05, +380504122905)\n або контактом для підтвердження броні:',
@@ -89,6 +102,7 @@ bot.action(/slot_(\d+)/, ctx => {
 			.resize(),
 	)
 })
+
 
 // --- Получение контакта ---
 bot.on('contact', handlePhone)
@@ -110,7 +124,7 @@ bot.on('text', async ctx => {
 		const phone = ctx.message.text.trim()
 
 		const validPhonePattern =
-      /^\+?(38)?[-\s()]?0\d{2}[-\s()]?\d{3}[-\s()]?\d{2}[-\s()]?\d{2}$/
+			/^\+?(38)?[-\s()]?0\d{2}[-\s()]?\d{3}[-\s()]?\d{2}[-\s()]?\d{2}$/
 
 		if (!validPhonePattern.test(phone)) {
 			return ctx.reply(
@@ -120,12 +134,12 @@ bot.on('text', async ctx => {
 					'• +050-412-29-05\n' +
 					'• +38-050-412-29-05\n' +
 					'• +380504122905\n' +
-          '• +38 050 412 29 05\n\n' +
+					'• +38 050 412 29 05\n\n' +
 					'Будь ласка, введіть номер у правильному форматі бо просто надішліть свій контакт:',
-          Markup.keyboard([Markup.button.contactRequest('📱 Надіслати контакт')])
-            .oneTime()
-            .resize()
-          )
+				Markup.keyboard([Markup.button.contactRequest('📱 Надіслати контакт')])
+					.oneTime()
+					.resize(),
+			)
 		}
 
 		session.phone = phone
@@ -138,7 +152,7 @@ bot.on('text', async ctx => {
 	// если уже есть телефон и ждём email
 	if (session.waitingEmail) {
 		const email = ctx.message.text.trim()
-    const validEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+		const validEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 		if (!validEmailPattern.test(email)) {
 			return ctx.reply('❌ Невірний формат email. Спробуйте ще раз:')
