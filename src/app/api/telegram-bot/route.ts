@@ -168,7 +168,7 @@ bot.on('text', async ctx => {
 	// если ждем email
 	if (session.waitingEmail) {
 		const email = ctx.message.text.trim()
-		const validEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+		const validEmailPattern = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/
 
 		if (!validEmailPattern.test(email)) {
 			return ctx.reply('❌ Невірний формат email. Спробуйте ще раз:')
