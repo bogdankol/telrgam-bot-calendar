@@ -5,7 +5,12 @@ import { DateTime } from 'luxon'
 import { envCheck } from '@/utils/server-utils'
 import { createNewInvoiceLink } from '@/actions/server-actions'
 import { TIMEZONE, SCOPES, invoiceCheckUrl } from '@/lib/vars'
-import { getAvailableDays, getAvailableSlotsForDay, handlePhone, isValidPhone } from '@/lib/helpers'
+import {
+	getAvailableDays,
+	getAvailableSlotsForDay,
+	handlePhone,
+	isValidPhone,
+} from '@/lib/helpers'
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
 const bot = new Telegraf(BOT_TOKEN)
@@ -37,12 +42,16 @@ export const sessions = new Map<
 
 // --- Команды бота ---
 bot.start(async ctx => {
-  const allEnvIsPresent = await envCheck()
-  if(!allEnvIsPresent) {
-    ctx.reply(`Доброго здоров'ячка! Наразі цей бот не працює, але не хвилюйтесь, через деякий час він обіцяє запрацювати.`)
-  } else {
-    ctx.reply(`Доброго здоров'ячка! 👋 Натисніть на /book, для того, щоб забронювати зустріч.`)
-  }
+	const allEnvIsPresent = await envCheck()
+	if (!allEnvIsPresent) {
+		ctx.reply(
+			`Доброго здоров'ячка! Наразі цей бот не працює, але не хвилюйтесь, через деякий час він обіцяє запрацювати.`,
+		)
+	} else {
+		ctx.reply(
+			`Доброго здоров'ячка! 👋 Натисніть на /book, для того, щоб забронювати зустріч.`,
+		)
+	}
 })
 
 bot.command('book', async ctx => {
@@ -74,7 +83,7 @@ bot.action(/slot_(\d+)/, ctx => {
 	sessions.set(String(ctx.from!.id), { startTime })
 
 	ctx.reply(
-		'Будь ласка, поділіться своїм номером телефону або контактом для підтвердження броні:',
+		'Будь ласка, поділіться своїм номером телефону (у одному з наступних форматів:\n +0504122905, +050-412-29-05, +38-050-412-29-05, +380504122905\n ) або контактом для підтвердження броні:',
 		Markup.keyboard([Markup.button.contactRequest('📱 Отправить контакт')])
 			.oneTime()
 			.resize(),
@@ -84,70 +93,92 @@ bot.action(/slot_(\d+)/, ctx => {
 // --- Получение контакта ---
 bot.on('contact', handlePhone)
 
-bot.on('text', async (ctx) => {
-  const userId = String(ctx.from!.id);
-  const session = sessions.get(userId);
+bot.on('text', async ctx => {
+	const userId = String(ctx.from!.id)
+	const session = sessions.get(userId)
 
-  if (!session || !session.startTime) return ctx.reply(
-    '🤖 Вибачте, введений вами текст мені не зрозумілий.\n\n' +
-    'Будь ласка, натисніть на /book або введіть команду /book вручну, щоб розпочати бронювання зустрічі.',
-  )
+	if (!session || !session.startTime)
+		return ctx.reply(
+			'🤖 Вибачте, введений вами текст мені не зрозумілий.\n\n' +
+				'Будь ласка, натисніть на /book або введіть команду /book вручну, щоб розпочати бронювання зустрічі.',
+		)
 
-  if (!session.startTime) return
+	if (!session.startTime) return
 
-  // если ждем телефон, а пользователь прислал текст
-  if (!session.phone) {
-    const phone = ctx.message.text.trim();
-    if (!isValidPhone(phone)) {
-      return ctx.reply(
-        '❌ Невірний формат телефонного номеру.\n' +
-        'Введіть номер телефону в одному із наступних форматів:\n' +
-        '+0504122905, 0504122905, +050-412-29-05, 050-412-29-05'
-      );
-    }
+	// если ждем телефон, а пользователь прислал текст
+	if (!session.phone) {
+		const phone = ctx.message.text.trim()
 
-    session.phone = phone;
-    session.waitingEmail = true;
-    sessions.set(userId, session);
+		// Разрешаем только форматы:
+		// +0504122905
+		// +050-412-29-05
+		// +38-050-412-29-05
+		// +380504122905
+		const validPhonePattern =
+			/^(\+050\d{7,8}|\+050-\d{3}-\d{2}-\d{2}|\+38-050-\d{3}-\d{2}-\d{2}|\+38050\d{7,8})$/
 
-    return ctx.reply('Дякую! Тепер введіть ваш email для підтвердження броні:');
-  }
+		if (!validPhonePattern.test(phone)) {
+			return ctx.reply(
+				'❌ Невірний формат телефонного номеру.\n\n' +
+					'Дозволені формати:\n' +
+					'• +0504122905\n' +
+					'• +050-412-29-05\n' +
+					'• +38-050-412-29-05\n' +
+					'• +380504122905\n' +
+          '• 38 050 412 29 05\n' +
+          '• +38 050 412 29 05\n\n' +
+					'Будь ласка, введіть номер у правильному форматі.',
+			)
+		}
 
-  // если уже есть телефон и ждём email
-  if (session.waitingEmail) {
-    const email = ctx.message.text.trim();
-    if (!/^[\w.-]+@[\w.-]+\.\w+$/.test(email)) {
-      return ctx.reply('❌ Невірний формат email. Спробуйте ще раз:');
-    }
+		session.phone = phone
+		session.waitingEmail = true
+		sessions.set(userId, session)
 
-    session.email = email;
-    delete session.waitingEmail;
-    sessions.set(userId, session);
+		return ctx.reply('Дякую! Тепер введіть ваш email для підтвердження броні:')
+	}
 
-    const invoiceData = await createNewInvoiceLink()
+	// если уже есть телефон и ждём email
+	if (session.waitingEmail) {
+		const email = ctx.message.text.trim()
+		if (!/^[\w.-]+@[\w.-]+\.\w+$/.test(email)) {
+			return ctx.reply('❌ Невірний формат email. Спробуйте ще раз:')
+		}
 
-    if(!invoiceData) {
-      await ctx.reply('Помилка при створенні зустрічі. Будь ласка, спробуйте пізніше')
-    }
+		session.email = email
+		delete session.waitingEmail
+		sessions.set(userId, session)
 
-    // создаем событие в Google Calendar
+		const invoiceData = await createNewInvoiceLink()
+
+		if (!invoiceData) {
+			await ctx.reply(
+				'Помилка при створенні зустрічі. Будь ласка, спробуйте пізніше',
+			)
+		}
+
+		// создаем событие в Google Calendar
 		const start = DateTime.fromJSDate(session.startTime, { zone: TIMEZONE })
 		const end = start.plus({ minutes: 60 })
-    const event: calendar_v3.Schema$Event = {
-      summary: 'Мітинг із психологом Ольгою Енгельс',
-      description: `Заброньовано через телеграм-бота.\nДані клієнта: ${
-        session.name || '—'
-      }\nТелефон: ${session.phone}\nEmail: ${
-        session.email
-      }\n💰 Статус оплати консультації: не оплачено\n
+		const event: calendar_v3.Schema$Event = {
+			summary: 'Мітинг із психологом Ольгою Енгельс',
+			description: `Заброньовано через телеграм-бота.\nДані клієнта: ${
+				session.name || '—'
+			}\nТелефон: ${session.phone}\nEmail: ${
+				session.email
+			}\n💰 Статус оплати консультації: не оплачено\n
         посилання на інвойс: ${invoiceData?.pageUrl}, \n
         айдішник інвойсу: ${invoiceData?.invoiceId},
-        посилання, де можна перевірити чи оплачений інвойс: ${process.env.BASIC_URL + invoiceCheckUrl + `?invoiceId=${invoiceData?.invoiceId}`}
+        посилання, де можна перевірити чи оплачений інвойс: ${
+					process.env.BASIC_URL +
+					invoiceCheckUrl +
+					`?invoiceId=${invoiceData?.invoiceId}`
+				}
       `,
-      start: { dateTime: start.toISO(), timeZone: TIMEZONE },
-      end: { dateTime: end.toISO(), timeZone: TIMEZONE },
-      conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
-    }
+			start: { dateTime: start.toISO(), timeZone: TIMEZONE },
+			end: { dateTime: end.toISO(), timeZone: TIMEZONE },
+			conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
+		}
 
 		try {
 			const res = await calendar.events.insert({
@@ -177,7 +208,9 @@ bot.on('text', async (ctx) => {
 			sessions.delete(userId)
 		} catch (err) {
 			console.error('Помилка при створенні події:', err)
-			await ctx.reply('⚠️ Не вдалось забронювати час та дату. Будь ласка, спробуйте пізніше.')
+			await ctx.reply(
+				'⚠️ Не вдалось забронювати час та дату. Будь ласка, спробуйте пізніше.',
+			)
 		}
 	}
 })
@@ -195,5 +228,5 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({ message: 'bot works' })
+	return NextResponse.json({ message: 'bot works' })
 }
