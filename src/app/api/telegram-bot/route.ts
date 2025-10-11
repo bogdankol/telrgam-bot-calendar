@@ -110,7 +110,7 @@ bot.on('text', async ctx => {
 		const phone = ctx.message.text.trim()
 
 		const validPhonePattern =
-      /^\+?(38)?[-\s()]?0?50[-\s()]?\d{3}[-\s()]?\d{2}[-\s()]?\d{2}$/
+      /^\+?(38)?[-\s()]?0\d{2}[-\s()]?\d{3}[-\s()]?\d{2}[-\s()]?\d{2}$/
 
 		if (!validPhonePattern.test(phone)) {
 			return ctx.reply(
