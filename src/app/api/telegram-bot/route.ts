@@ -78,6 +78,16 @@ bot.command('book', async ctx => {
 
 // --- Выбор дня ---
 bot.action(/day_(.+)/, async ctx => {
+  const userId = String(ctx.from!.id)
+	const session = sessions.get(userId)
+
+	// если сессия завершена или уже была — не разрешаем нажимать старые кнопки
+	if (session && session.completed) {
+		return ctx.reply(
+			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати нове.',
+		)
+	}
+  
 	const day = DateTime.fromISO(ctx.match[1]).setZone(TIMEZONE)
 	const slots = await getAvailableSlotsForDay(day)
 
