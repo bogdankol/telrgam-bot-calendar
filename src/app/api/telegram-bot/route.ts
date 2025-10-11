@@ -55,7 +55,7 @@ bot.start(async ctx => {
 })
 
 bot.command('book', async ctx => {
-	const loadingMsg = await ctx.reply('🔄 Зачекайте, йде завантаження доступних днів...')
+	 await ctx.reply('🔄 Будь ласка зачекайте, йде завантаження доступних днів...')
 
 	try {
 		const days = await getAvailableDays(30)
@@ -63,20 +63,10 @@ bot.command('book', async ctx => {
 			Markup.button.callback(d.toFormat('dd.MM.yyyy'), `day_${d.toISO()}`),
 		])
 
-		await ctx.telegram.editMessageText(
-			ctx.chat!.id,
-			loadingMsg.message_id,
-			undefined,
-			'📅 Виберіть день для зустрічі:',
-			{ reply_markup: Markup.inlineKeyboard(buttons).reply_markup }
-		)
+		await ctx.reply('📅 Виберіть день для зустрічі:', Markup.inlineKeyboard(buttons))
 	} catch (err) {
-		await ctx.telegram.editMessageText(
-			ctx.chat!.id,
-			loadingMsg.message_id,
-			undefined,
-			'⚠️ Не вдалося завантажити доступні дні. Будь ласка, спробуйте пізніше.',
-		)
+    console.error('Error during days obtaining:', {err})
+		await ctx.reply('⚠️ Не вдалося завантажити доступні дні. Будь ласка, спробуйте пізніше.')
 	}
 })
 
