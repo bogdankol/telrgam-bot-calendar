@@ -55,6 +55,8 @@ bot.start(async ctx => {
 })
 
 bot.command('book', async ctx => {
+  await ctx.reply('🔄 Зачекайте, йде завантаження доступних днів...')
+  
 	const days = await getAvailableDays(30)
 	const buttons = days.map(d => [
 		Markup.button.callback(d.toFormat('dd.MM.yyyy'), `day_${d.toISO()}`),

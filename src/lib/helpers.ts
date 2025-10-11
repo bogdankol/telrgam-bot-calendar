@@ -101,5 +101,5 @@ export function isValidPhone(phone: string) {
   if (/[^+\d]/.test(cleaned)) return false; // есть буквы или другие символы
   if ((cleaned.match(/\+/g) || []).length > 1) return false; // больше одного +
   if (!/^\+?\d{9,15}$/.test(cleaned)) return false; // длина номера
-  return true;
+  return true
 }
