@@ -88,7 +88,12 @@ bot.on('text', async (ctx) => {
   const userId = String(ctx.from!.id);
   const session = sessions.get(userId);
 
-  if (!session || !session.startTime) return;
+  if (!session || !session.startTime) return ctx.reply(
+    '🤖 Вибачте, введений вами текст мені не зрозумілий.\n\n' +
+    'Будь ласка, натисніть на /book або введіть команду /book вручну, щоб розпочати бронювання зустрічі.',
+  )
+
+  if (!session.startTime) return
 
   // если ждем телефон, а пользователь прислал текст
   if (!session.phone) {
