@@ -228,6 +228,8 @@ bot.on('text', async ctx => {
 				{ parse_mode: 'Markdown' },
 			)
 
+      await ctx.reply(`Для продовження роботи ви можете просто натиснути /book або /start`)
+
 			sessions.delete(userId)
 		} catch (err) {
 			console.error('Помилка при створенні події:', err)
