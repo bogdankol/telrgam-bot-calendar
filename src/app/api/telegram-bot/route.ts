@@ -37,6 +37,7 @@ export const sessions = new Map<
 		name?: string
 		email?: string
 		waitingEmail?: boolean
+    booked?: boolean
 	}
 >()
 
@@ -91,16 +92,16 @@ bot.action(/day_(.+)/, async ctx => {
 
 // --- Выбор слота и запрос контакта ---
 bot.action(/slot_(\d+)/, async ctx => {
-  const userId = String(ctx.from!.id)
-	const session = sessions.get(userId)
+	const userId = String(ctx.from!.id)
+	const oldSession = sessions.get(userId)
 
-	// если сессия отсутствует — отменяем действие
-	if (!session || !session.startTime) {
+	// Если пользователь уже забронировал слот — запрещаем создавать новый
+	if (oldSession && oldSession.booked) {
 		return ctx.reply(
 			'🤖 Для початку натисніть на /book, щоб розпочати бронювання зустрічі.',
 		)
 	}
-  
+
 	const timestamp = parseInt(ctx.match[1])
 	const startTime = DateTime.fromMillis(timestamp).setZone(TIMEZONE)
 
@@ -115,8 +116,8 @@ bot.action(/slot_(\d+)/, async ctx => {
 		)
 	}
 
-	// Если слот свободен, создаем сессию
-	sessions.set(String(ctx.from!.id), { startTime: startTime.toJSDate() })
+	// Создаем новую сессию с флагом booked
+	sessions.set(userId, { startTime: startTime.toJSDate(), booked: true })
 
 	ctx.reply(
 		'Будь ласка, поділіться своїм номером телефону (у одному з наступних форматів:\n +0504122905, +050-412-29-05, +38-050-412-29-05, +380504122905)\n або контактом для підтвердження броні:',
