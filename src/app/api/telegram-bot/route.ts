@@ -37,7 +37,7 @@ export const sessions = new Map<
 		name?: string
 		email?: string
 		waitingEmail?: boolean
-    booked?: boolean
+		completed?: boolean
 	}
 >()
 
@@ -93,22 +93,21 @@ bot.action(/day_(.+)/, async ctx => {
 // --- Выбор слота и запрос контакта ---
 bot.action(/slot_(\d+)/, async ctx => {
 	const userId = String(ctx.from!.id)
-	const oldSession = sessions.get(userId)
+	const session = sessions.get(userId)
 
-	// Если пользователь уже забронировал слот — запрещаем создавать новый
-	if (oldSession && oldSession.booked) {
+	// если сессия завершена или уже была — не разрешаем нажимать старые кнопки
+	if (session && session.completed) {
 		return ctx.reply(
-			'🤖 Для початку натисніть на /book, щоб розпочати бронювання зустрічі.',
+			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати нове.',
 		)
 	}
 
 	const timestamp = parseInt(ctx.match[1])
 	const startTime = DateTime.fromMillis(timestamp).setZone(TIMEZONE)
 
-	// Получаем доступные слоты заново на тот же день
+	// Проверяем, свободен ли слот
 	const day = startTime.startOf('day')
 	const slots = await getAvailableSlotsForDay(day)
-
 	const slotTaken = !slots.some(s => s.start.toMillis() === timestamp)
 	if (slotTaken) {
 		return ctx.reply(
@@ -116,10 +115,10 @@ bot.action(/slot_(\d+)/, async ctx => {
 		)
 	}
 
-	// Создаем новую сессию с флагом booked
-	sessions.set(userId, { startTime: startTime.toJSDate(), booked: true })
+	// создаем новую сессию (перезаписываем старую)
+	sessions.set(userId, { startTime: startTime.toJSDate() })
 
-	ctx.reply(
+	await ctx.reply(
 		'Будь ласка, поділіться своїм номером телефону (у одному з наступних форматів:\n +0504122905, +050-412-29-05, +38-050-412-29-05, +380504122905)\n або контактом для підтвердження броні:',
 		Markup.keyboard([Markup.button.contactRequest('📱 Отправить контакт')])
 			.oneTime()
@@ -135,12 +134,15 @@ bot.on('text', async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 
-	// если сессии нет вообще
 	if (!session) {
 		return ctx.reply(
-			'🤖 Вибачте, введений вами текст мені не зрозумілий.\n\n' +
-				'Для початку натисніть на /book',
+			'🤖 Для початку натисніть /book, щоб розпочати бронювання зустрічі.',
 		)
+	}
+
+	// если бронирование уже завершено
+	if (session.completed) {
+		return ctx.reply('🤖 Поточне бронювання вже завершено. Натисніть /book.')
 	}
 
 	// если ждем телефон
@@ -168,7 +170,6 @@ bot.on('text', async ctx => {
 		session.phone = phone
 		session.waitingEmail = true
 		sessions.set(userId, session)
-
 		return ctx.reply('Дякую! Тепер введіть ваш email для підтвердження броні:')
 	}
 
@@ -239,10 +240,10 @@ bot.on('text', async ctx => {
 				{ parse_mode: 'Markdown' },
 			)
 
-			// Очищаем сессию, чтобы старые кнопки слотов не работали
-			sessions.delete(userId)
+			// Помечаем сессию завершённой — старые кнопки больше не активны
+			session.completed = true
+			sessions.set(userId, session)
 
-			// Дополнительно уведомляем пользователя, что нужно начать заново
 			await ctx.reply('Для продовження роботи натисніть /book або /start')
 		} catch (err) {
 			console.error('Помилка при створенні події:', err)
@@ -253,7 +254,6 @@ bot.on('text', async ctx => {
 		return
 	}
 
-	// если бот не ждет ни телефона, ни email
 	return ctx.reply(
 		'🤖 Вибачте, введений вами текст мені не зрозумілий.\n\n' +
 			'Для початку натисніть на /book',
