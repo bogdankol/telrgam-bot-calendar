@@ -55,13 +55,20 @@ bot.start(async ctx => {
 })
 
 bot.command('book', async ctx => {
-  await ctx.reply('🔄 Зачекайте, йде завантаження доступних днів...')
-  
+	const loadingMsg = await ctx.reply('🔄 Зачекайте, йде завантаження доступних днів...')
+
 	const days = await getAvailableDays(30)
 	const buttons = days.map(d => [
 		Markup.button.callback(d.toFormat('dd.MM.yyyy'), `day_${d.toISO()}`),
 	])
-	ctx.reply('Виберіть день для зустрічі:', Markup.inlineKeyboard(buttons))
+
+	await ctx.telegram.editMessageText(
+		ctx.chat!.id,
+		loadingMsg.message_id,
+		undefined,
+		'📅 Виберіть день для зустрічі:',
+		{ reply_markup: Markup.inlineKeyboard(buttons).reply_markup }
+	)
 })
 
 // --- Выбор дня ---
