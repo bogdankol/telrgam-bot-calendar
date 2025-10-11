@@ -91,6 +91,16 @@ bot.action(/day_(.+)/, async ctx => {
 
 // --- Выбор слота и запрос контакта ---
 bot.action(/slot_(\d+)/, async ctx => {
+  const userId = String(ctx.from!.id)
+	const session = sessions.get(userId)
+
+	// если сессия отсутствует — отменяем действие
+	if (!session || !session.startTime) {
+		return ctx.reply(
+			'🤖 Для початку натисніть на /book, щоб розпочати бронювання зустрічі.',
+		)
+	}
+  
 	const timestamp = parseInt(ctx.match[1])
 	const startTime = DateTime.fromMillis(timestamp).setZone(TIMEZONE)
 
