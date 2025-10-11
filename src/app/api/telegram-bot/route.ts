@@ -109,13 +109,8 @@ bot.on('text', async ctx => {
 	if (!session.phone) {
 		const phone = ctx.message.text.trim()
 
-		// Разрешаем только форматы:
-		// +0504122905
-		// +050-412-29-05
-		// +38-050-412-29-05
-		// +380504122905
 		const validPhonePattern =
-			/^(\+050\d{7,8}|\+050-\d{3}-\d{2}-\d{2}|\+38-050-\d{3}-\d{2}-\d{2}|\+38050\d{7,8}|\+38\s?050\s?\d{3}\s?\d{2}\s?\d{2})$/
+      /^\+?(38)?[-\s()]?0?50[-\s()]?\d{3}[-\s()]?\d{2}[-\s()]?\d{2}$/
 
 		if (!validPhonePattern.test(phone)) {
 			return ctx.reply(
