@@ -57,18 +57,27 @@ bot.start(async ctx => {
 bot.command('book', async ctx => {
 	const loadingMsg = await ctx.reply('🔄 Зачекайте, йде завантаження доступних днів...')
 
-	const days = await getAvailableDays(30)
-	const buttons = days.map(d => [
-		Markup.button.callback(d.toFormat('dd.MM.yyyy'), `day_${d.toISO()}`),
-	])
+	try {
+		const days = await getAvailableDays(30)
+		const buttons = days.map(d => [
+			Markup.button.callback(d.toFormat('dd.MM.yyyy'), `day_${d.toISO()}`),
+		])
 
-	await ctx.telegram.editMessageText(
-		ctx.chat!.id,
-		loadingMsg.message_id,
-		undefined,
-		'📅 Виберіть день для зустрічі:',
-		{ reply_markup: Markup.inlineKeyboard(buttons).reply_markup }
-	)
+		await ctx.telegram.editMessageText(
+			ctx.chat!.id,
+			loadingMsg.message_id,
+			undefined,
+			'📅 Виберіть день для зустрічі:',
+			{ reply_markup: Markup.inlineKeyboard(buttons).reply_markup }
+		)
+	} catch (err) {
+		await ctx.telegram.editMessageText(
+			ctx.chat!.id,
+			loadingMsg.message_id,
+			undefined,
+			'⚠️ Не вдалося завантажити доступні дні. Будь ласка, спробуйте пізніше.',
+		)
+	}
 })
 
 // --- Выбор дня ---
@@ -112,26 +121,24 @@ bot.action(/slot_(\d+)/, async ctx => {
 	)
 })
 
-
 // --- Получение контакта ---
 bot.on('contact', handlePhone)
 
+// --- Обработка текстовых сообщений ---
 bot.on('text', async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 
-	if (!session || !session.startTime)
+	// если сессии нет вообще
+	if (!session)
 		return ctx.reply(
 			'🤖 Вибачте, введений вами текст мені не зрозумілий.\n\n' +
 				'Будь ласка, натисніть на /book або введіть команду /book вручну, щоб розпочати бронювання зустрічі.',
 		)
 
-	if (!session.startTime) return
-
-	// если ждем телефон, а пользователь прислал текст
-	if (!session.phone) {
+	// если ждем телефон
+	if (!session.phone && !session.waitingEmail) {
 		const phone = ctx.message.text.trim()
-
 		const validPhonePattern =
 			/^\+?(38)?[-\s()]?0\d{2}[-\s()]?\d{3}[-\s()]?\d{2}[-\s()]?\d{2}$/
 
@@ -144,7 +151,7 @@ bot.on('text', async ctx => {
 					'• +38-050-412-29-05\n' +
 					'• +380504122905\n' +
 					'• +38 050 412 29 05\n\n' +
-					'Будь ласка, введіть номер у правильному форматі бо просто надішліть свій контакт:',
+					'Будь ласка, введіть номер у правильному форматі або просто надішліть свій контакт:',
 				Markup.keyboard([Markup.button.contactRequest('📱 Надіслати контакт')])
 					.oneTime()
 					.resize(),
@@ -158,7 +165,7 @@ bot.on('text', async ctx => {
 		return ctx.reply('Дякую! Тепер введіть ваш email для підтвердження броні:')
 	}
 
-	// если уже есть телефон и ждём email
+	// если ждем email
 	if (session.waitingEmail) {
 		const email = ctx.message.text.trim()
 		const validEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
@@ -177,11 +184,15 @@ bot.on('text', async ctx => {
 			await ctx.reply(
 				'Помилка при створенні зустрічі. Будь ласка, спробуйте пізніше',
 			)
+			return
 		}
 
 		// создаем событие в Google Calendar
-		const start = DateTime.fromJSDate(session.startTime, { zone: TIMEZONE })
+		const start = session.startTime
+			? DateTime.fromJSDate(session.startTime, { zone: TIMEZONE })
+			: DateTime.local().setZone(TIMEZONE)
 		const end = start.plus({ minutes: 60 })
+
 		const event: calendar_v3.Schema$Event = {
 			summary: 'Мітинг із психологом Ольгою Енгельс',
 			description: `Заброньовано через телеграм-бота.\nДані клієнта: ${
@@ -223,7 +234,7 @@ bot.on('text', async ctx => {
 					`📧 Email: ${session.email}\n\n` +
 					`💰 Статус оплати: ❌ не оплачено\n` +
 					`Сума: ${amount} грн\n` +
-					`👉 Для оплати перейдіть за посиланням(${paymentLink}). Дане посилання буде доступне на протязі 24 годин. Оплати, не то понос нашлю!!!`,
+					`👉 Для оплати перейдіть за посиланням (${paymentLink}). Дане посилання буде доступне на протязі 24 годин.`,
 				{ parse_mode: 'Markdown' },
 			)
 
@@ -234,7 +245,14 @@ bot.on('text', async ctx => {
 				'⚠️ Не вдалось забронювати час та дату. Будь ласка, спробуйте пізніше.',
 			)
 		}
+		return
 	}
+
+	// если бот не ждет ни телефона, ни email
+	return ctx.reply(
+		'🤖 Вибачте, введений вами текст мені не зрозумілий.\n\n' +
+			'Будь ласка, натисніть на /book або введіть команду /book вручну, щоб розпочати бронювання зустрічі.',
+	)
 })
 
 // --- Webhook handler ---
