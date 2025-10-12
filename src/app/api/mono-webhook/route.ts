@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     errCode: errCode ?? '',
     amount_in_kopiyka: amount,
     ccy_TypeOfMoneyCurrency: ccy,
-    finalAmount_in_kopiyka: finalAmount,
+    finalAmount_in_kopiyka: finalAmount ?? 0,
     invoiceDateOfCreation: createdDate,
     invoiceDateOfUpdate: modifiedDate,
     otherPaymentInfo: JSON.stringify(paymentInfo)
