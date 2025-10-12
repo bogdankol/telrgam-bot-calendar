@@ -32,6 +32,7 @@ export const calendar = google.calendar({ version: 'v3', auth })
 export const sessions = new Map<
 	string,
 	{
+		sessionId: string
 		startTime?: Date
 		phone?: string
 		name?: string
@@ -43,7 +44,7 @@ export const sessions = new Map<
 
 // --- Команды бота ---
 bot.start(async ctx => {
-  const userId = String(ctx.from!.id)
+	const userId = String(ctx.from!.id)
 	sessions.delete(userId)
 
 	const allEnvIsPresent = await envCheck()
@@ -59,15 +60,21 @@ bot.start(async ctx => {
 })
 
 bot.command('book', async ctx => {
-  const userId = String(ctx.from!.id)
+	const userId = String(ctx.from!.id)
 	sessions.delete(userId)
 
 	await ctx.reply('🔄 Будь ласка зачекайте, йде завантаження доступних днів...')
 
 	try {
 		const days = await getAvailableDays(30)
+		const sessionId = Math.random().toString(36).substring(2, 10)
+		sessions.set(userId, { sessionId })
+
 		const buttons = days.map(d => [
-			Markup.button.callback(d.toFormat('dd.MM.yyyy'), `day_${d.toISO()}`),
+			Markup.button.callback(
+				d.toFormat('dd.MM.yyyy'),
+				`day_${sessionId}_${d.toISO()}`,
+			),
 		])
 
 		await ctx.reply(
@@ -83,42 +90,45 @@ bot.command('book', async ctx => {
 })
 
 // --- Выбор дня ---
-bot.action(/day_(.+)/, async ctx => {
-  const userId = String(ctx.from!.id)
+bot.action(/day_(.+?)_(.+)/, async ctx => {
+	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
+	const [clickedSessionId, dayISO] = [ctx.match[1], ctx.match[2]]
 
-	// если сессия завершена или уже была — не разрешаем нажимать старые кнопки
-	if (session && session.completed) {
+	if (!session || session.sessionId !== clickedSessionId || session.completed) {
 		return ctx.reply(
-			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново.',
+			'🤖 Поточне бронювання вже завершено або застаріло. Натисніть /book, щоб почати заново.',
 		)
 	}
 
-	const day = DateTime.fromISO(ctx.match[1]).setZone(TIMEZONE)
+	const day = DateTime.fromISO(dayISO).setZone(TIMEZONE)
 	const slots = await getAvailableSlotsForDay(day)
 
 	if (slots.length === 0) return ctx.reply('Немає доступних часів на цей день.')
 
 	const buttons = slots.map(s => [
-		Markup.button.callback(s.label, `slot_${s.start.toMillis()}`),
+		Markup.button.callback(
+			s.label,
+			`slot_${clickedSessionId}_${s.start.toMillis()}`,
+		),
 	])
 
 	ctx.reply('Виберіть зручний час:', Markup.inlineKeyboard(buttons))
 })
 
 // --- Выбор слота и запрос контакта ---
-bot.action(/slot_(\d+)/, async ctx => {
+bot.action(/slot_(.+?)_(\d+)/, async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
+	const [clickedSessionId, timestampStr] = [ctx.match[1], ctx.match[2]]
 
-	// если сессия завершена или уже была — не разрешаем нажимать старые кнопки
-	if (session && session.completed) {
+	if (!session || session.sessionId !== clickedSessionId || session.completed) {
 		return ctx.reply(
-			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново.',
+			'🤖 Поточне бронювання вже завершено або застаріло. Натисніть /book, щоб почати заново.',
 		)
 	}
 
-	const timestamp = parseInt(ctx.match[1])
+	const timestamp = parseInt(timestampStr)
 	const startTime = DateTime.fromMillis(timestamp).setZone(TIMEZONE)
 
 	// Проверяем, свободен ли слот
@@ -131,8 +141,9 @@ bot.action(/slot_(\d+)/, async ctx => {
 		)
 	}
 
-	// создаем новую сессию (перезаписываем старую)
-	sessions.set(userId, { startTime: startTime.toJSDate() })
+	// обновляем сессию с выбранным временем
+	session.startTime = startTime.toJSDate()
+	sessions.set(userId, session)
 
 	await ctx.reply(
 		'Будь ласка, поділіться своїм номером телефону (у одному з наступних форматів:\n +0504122905, +050-412-29-05, +38-050-412-29-05, +380504122905)\n або контактом для підтвердження броні:',
@@ -156,12 +167,13 @@ bot.on('text', async ctx => {
 		)
 	}
 
-	// если бронирование уже завершено
 	if (session.completed) {
-		return ctx.reply('🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново.')
+		return ctx.reply(
+			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново.',
+		)
 	}
 
-	// если ждем телефон
+	// ждем телефон
 	if (!session.phone && !session.waitingEmail) {
 		const phone = ctx.message.text.trim()
 		const validPhonePattern =
@@ -189,7 +201,7 @@ bot.on('text', async ctx => {
 		return ctx.reply('Дякую! Тепер введіть ваш email для підтвердження броні:')
 	}
 
-	// если ждем email
+	// ждем email
 	if (session.waitingEmail) {
 		const email = ctx.message.text.trim()
 		const validEmailPattern = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/
