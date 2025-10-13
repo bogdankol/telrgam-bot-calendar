@@ -198,6 +198,9 @@ bot.on('text', async ctx => {
 		if (reason.length < 10) {
 			return ctx.reply("❌ Опис проблеми занадто короткий, опишіть більш детально.")
 		}
+    if (reason.length > 500) {
+			return ctx.reply("❌ Опис проблеми занадто довгий, спробуйте описати менш детально.")
+		}
 		session.reason = reason
 		session.waitingForReasonOfMeeting = false
 		session.waitingPhone = true
