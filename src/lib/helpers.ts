@@ -1,4 +1,4 @@
-import { sessions, calendar } from '@/app/api/telegram-bot/route'
+import { calendar } from '@/app/api/telegram-bot/route'
 import { DateTime } from 'luxon'
 import { TIMEZONE } from './vars'
 
@@ -74,7 +74,7 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 }
 
 // --- функция обработки контакта ---
-export function handlePhone(ctx: any) {
+export function handlePhone(ctx: any, sessions: any) {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 	if (!session || !session.startTime) {

@@ -157,7 +157,7 @@ bot.action(/slot_(.+?)_(\d+)/, async ctx => {
 })
 
 // --- Получение контакта ---
-bot.on('contact', handlePhone)
+bot.on('contact', ctx => handlePhone(ctx, sessions))
 
 // --- Обработка текстовых сообщений ---
 bot.on('text', async ctx => {
