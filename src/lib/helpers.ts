@@ -35,7 +35,7 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 	// const breakAfterMeeting = 30 // мин
 	const maxMeetingsPerDay = 8
 
-	let slotStart = day.set({
+	const slotStart = day.set({
 		hour: startHour,
 		minute: 0,
 		second: 0,
