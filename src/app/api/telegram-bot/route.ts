@@ -288,8 +288,8 @@ bot.on('text', async ctx => {
 					`📞 Телефон: ${session.phone}\n` +
 					`👤 Ім'я: ${session.name}\n` +
 					`📧 Email: ${session.email}\n\n` +
-          ` Опис підстави для звернення: ${session.reason}\n` +
-				{ parse_mode: 'Markdown' },
+          ` Опис підстави для звернення: ${session.reason}\n` 
+            // + { parse_mode: 'Markdown' },
 			)
 
 			session.completed = true
