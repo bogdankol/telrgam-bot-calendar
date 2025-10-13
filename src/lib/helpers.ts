@@ -84,8 +84,6 @@ export function handlePhone(ctx: any) {
 	const contact = ctx.message.contact
 	if (contact?.phone_number) {
 		session.phone = contact.phone_number
-		session.name =
-			contact.first_name + (contact.last_name ? ' ' + contact.last_name : '')
 		session.waitingEmail = true
 		sessions.set(userId, session)
 		ctx.reply('Дякую! тепер введіть email на який буде надіслано запрошення:')

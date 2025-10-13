@@ -34,9 +34,11 @@ export const sessions = new Map<
 	{
 		sessionId: string
 		startTime?: Date
-		phone?: string
 		name?: string
+		phone?: string
 		email?: string
+		waitingName?: boolean
+		waitingPhone?: boolean
 		waitingEmail?: boolean
 		completed?: boolean
 	}
@@ -116,7 +118,7 @@ bot.action(/day_(.+?)_(.+)/, async ctx => {
 	ctx.reply('Виберіть зручний час:', Markup.inlineKeyboard(buttons))
 })
 
-// --- Выбор слота и запрос контакта ---
+// --- Выбор слота и запрос имени ---
 bot.action(/slot_(.+?)_(\d+)/, async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
@@ -131,7 +133,6 @@ bot.action(/slot_(.+?)_(\d+)/, async ctx => {
 	const timestamp = parseInt(timestampStr)
 	const startTime = DateTime.fromMillis(timestamp).setZone(TIMEZONE)
 
-	// Проверяем, свободен ли слот
 	const day = startTime.startOf('day')
 	const slots = await getAvailableSlotsForDay(day)
 	const slotTaken = !slots.some(s => s.start.toMillis() === timestamp)
@@ -141,16 +142,12 @@ bot.action(/slot_(.+?)_(\d+)/, async ctx => {
 		)
 	}
 
-	// обновляем сессию с выбранным временем
+	// обновляем сессию с выбранным временем и ждем имя
 	session.startTime = startTime.toJSDate()
+	session.waitingName = true
 	sessions.set(userId, session)
 
-	await ctx.reply(
-		'Будь ласка, поділіться своїм номером телефону (у одному з наступних форматів:\n +0504122905, +050-412-29-05, +38-050-412-29-05, +380504122905)\n або контактом для підтвердження броні:',
-		Markup.keyboard([Markup.button.contactRequest('📱 Отправить контакт')])
-			.oneTime()
-			.resize(),
-	)
+	await ctx.reply("Будь ласка, введіть ваше ім'я для бронювання:")
 })
 
 // --- Получение контакта ---
@@ -173,8 +170,28 @@ bot.on('text', async ctx => {
 		)
 	}
 
+	// ждем имя
+	if (session.waitingName) {
+		const name = ctx.message.text.trim()
+		if (name.length < 2) {
+			return ctx.reply("❌ Ім'я занадто коротке. Введіть своє ім'я ще раз:")
+		}
+		session.name = name
+		session.waitingName = false
+		session.waitingPhone = true
+		sessions.set(userId, session)
+
+		await ctx.reply(
+			'Будь ласка, поділіться своїм номером телефону (у одному з наступних форматів:\n +0504122905\n, +050-412-29-05\n, +38-050-412-29-05\n, +380504122905)\n\n або надішліть свій контакт для підтвердження броні:',
+			Markup.keyboard([Markup.button.contactRequest('📱 Надіслати контакт')])
+				.oneTime()
+				.resize(),
+		)
+		return
+	}
+
 	// ждем телефон
-	if (!session.phone && !session.waitingEmail) {
+	if (session.waitingPhone) {
 		const phone = ctx.message.text.trim()
 		const validPhonePattern =
 			/^\+?(38)?[-\s()]?0\d{2}[-\s()]?\d{3}[-\s()]?\d{2}[-\s()]?\d{2}$/
@@ -196,6 +213,7 @@ bot.on('text', async ctx => {
 		}
 
 		session.phone = phone
+		session.waitingPhone = false
 		session.waitingEmail = true
 		sessions.set(userId, session)
 		return ctx.reply('Дякую! Тепер введіть ваш email для підтвердження броні:')
@@ -229,7 +247,7 @@ bot.on('text', async ctx => {
 		const event: calendar_v3.Schema$Event = {
 			summary: 'Мітинг із психологом Ольгою Енгельс',
 			description: `Заброньовано через телеграм-бота.\nДані клієнта: ${
-				session.name || '—'
+				session.name
 			}\nТелефон: ${session.phone}\nEmail: ${
 				session.email
 			}\n💰 Статус оплати консультації: не оплачено\n
@@ -260,7 +278,7 @@ bot.on('text', async ctx => {
 						? `🔗 Посилання на Google Meet: ${res.data.hangoutLink}\n`
 						: `ℹ️ Запрошення буде надіслано на ваш email.\n`) +
 					`📞 Телефон: ${session.phone}\n` +
-					`👤 Ім'я: ${session.name || '—'}\n` +
+					`👤 Ім'я: ${session.name}\n` +
 					`📧 Email: ${session.email}\n\n` +
 					`💰 Статус оплати: ❌ не оплачено\n` +
 					`Сума: ${amount} грн\n` +
@@ -268,7 +286,6 @@ bot.on('text', async ctx => {
 				{ parse_mode: 'Markdown' },
 			)
 
-			// Помечаем сессию завершённой — старые кнопки больше не активны
 			session.completed = true
 			sessions.set(userId, session)
 
