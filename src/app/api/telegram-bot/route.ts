@@ -3,13 +3,12 @@ import { google, calendar_v3 } from 'googleapis'
 import { NextRequest, NextResponse } from 'next/server'
 import { DateTime } from 'luxon'
 import { envCheck } from '@/utils/server-utils'
-import { createNewInvoiceLink } from '@/actions/server-actions'
-import { TIMEZONE, SCOPES, invoiceCheckUrl } from '@/lib/vars'
+// import { createNewInvoiceLink } from '@/actions/server-actions'
+import { TIMEZONE, SCOPES } from '@/lib/vars'
 import {
 	getAvailableDays,
 	getAvailableSlotsForDay,
 	handlePhone,
-	isValidPhone,
 } from '@/lib/helpers'
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
@@ -255,13 +254,6 @@ bot.on('text', async ctx => {
 		delete session.waitingEmail
 		sessions.set(userId, session)
 
-		const invoiceData = await createNewInvoiceLink()
-		if (!invoiceData) {
-			return ctx.reply(
-				'Помилка при створенні зустрічі. Будь ласка, спробуйте пізніше',
-			)
-		}
-
 		const start = session.startTime
 			? DateTime.fromJSDate(session.startTime, { zone: TIMEZONE })
 			: DateTime.local().setZone(TIMEZONE)
@@ -274,13 +266,7 @@ bot.on('text', async ctx => {
 			}\nТелефон: ${session.phone}\nEmail: ${
 				session.email
 			}\n💰 
-        Опис підстави для звернення: ${session.reason}\n 
-        Статус оплати консультації: не оплачено\n
-        посилання на інвойс: ${invoiceData?.pageUrl}\n
-        айдішник інвойсу: ${invoiceData?.invoiceId}\n
-        перевірити оплату: ${
-					process.env.BASIC_URL + invoiceCheckUrl
-				}?invoiceId=${invoiceData?.invoiceId}`,
+        Опис підстави для звернення: ${session.reason}\n`,
 			start: { dateTime: start.toISO(), timeZone: TIMEZONE },
 			end: { dateTime: end.toISO(), timeZone: TIMEZONE },
 			conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
@@ -293,9 +279,6 @@ bot.on('text', async ctx => {
 				conferenceDataVersion: 1,
 			})
 
-			const paymentLink = invoiceData?.pageUrl
-			const amount = 800
-
 			await ctx.reply(
 				`✅ Мітинг заброньовано!\n` +
 					`📅 Дата та час: ${start.toFormat('dd.MM.yyyy HH:mm')}\n` +
@@ -306,9 +289,6 @@ bot.on('text', async ctx => {
 					`👤 Ім'я: ${session.name}\n` +
 					`📧 Email: ${session.email}\n\n` +
           ` Опис підстави для звернення: ${session.reason}\n` +
-					`💰 Статус оплати: ❌ не оплачено\n` +
-					`Сума: ${amount} грн\n` +
-					`👉 Для оплати перейдіть за посиланням (${paymentLink}). Посилання дійсне 24 години.`,
 				{ parse_mode: 'Markdown' },
 			)
 
