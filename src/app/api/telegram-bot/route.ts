@@ -38,7 +38,9 @@ export const sessions = new Map<
 		email?: string
     reason?: string
 		waitingName?: boolean
+    meetingType?: string
     waitingForReasonOfMeeting?: boolean
+    waitingForMeetingType?: boolean
 		waitingPhone?: boolean
 		waitingEmail?: boolean
 		completed?: boolean
@@ -157,6 +159,31 @@ bot.action(/slot_(.+?)_(\d+)/, async ctx => {
 	await ctx.reply("Будь ласка, введіть ваше ім'я для бронювання:")
 })
 
+// --- Выбор формата встречи ---
+bot.action(/meeting_(offline|online)/, async ctx => {
+	const userId = String(ctx.from!.id)
+	const session = sessions.get(userId)
+	if (!session || session.completed) {
+		return ctx.reply(
+			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново.'
+		)
+	}
+
+	const type = ctx.match[1]  // offline или online
+
+  if(!type) {
+    ctx.reply('Необхідно обрати один з двох запропонованих варіантів')
+  }
+  
+	session.meetingType = type.split('-')[1] 
+	session.waitingPhone = true
+	sessions.set(userId, session)
+
+	await ctx.reply(
+		'Будь ласка, поділіться тим що вас турбує, із чим ви хочете впоратись за допомогою моєї допомоги:'
+	)
+})
+
 // --- Получение контакта ---
 bot.on('contact', ctx => handlePhone(ctx, sessions))
 
@@ -203,16 +230,25 @@ bot.on('text', async ctx => {
 		}
 		session.reason = reason
 		session.waitingForReasonOfMeeting = false
-		session.waitingPhone = true
+		// session.waitingPhone = true
 		sessions.set(userId, session)
 
-		await ctx.reply(
-			'Будь ласка, поділіться своїм номером телефону (у одному з наступних форматів:\n +0504122905\n, +050-412-29-05\n, +38-050-412-29-05\n, +380504122905)\n\n або надішліть свій контакт для підтвердження броні:',
-			Markup.keyboard([Markup.button.contactRequest('📱 Надіслати контакт')])
-				.oneTime()
-				.resize(),
-		)
-		return
+		// await ctx.reply(
+		// 	'Будь ласка, поділіться своїм номером телефону (у одному з наступних форматів:\n +0504122905\n, +050-412-29-05\n, +38-050-412-29-05\n, +380504122905)\n\n або надішліть свій контакт для підтвердження броні:',
+		// 	Markup.keyboard([Markup.button.contactRequest('📱 Надіслати контакт')])
+		// 		.oneTime()
+		// 		.resize(),
+		// )
+		// return
+
+    await ctx.reply(
+      'Будь ласка, оберіть формат зустрічі:',
+      Markup.inlineKeyboard([
+        [Markup.button.callback('🏢 Офлайн в офісі (адреса 1 буд 11 офіс 111 поверх 1111)', `meeting_offline`)],
+        [Markup.button.callback('💻 Онлайн (Google Meet)', `meeting_online`)],
+      ])
+    )
+    return
 	}
 
 	// ждем телефон
