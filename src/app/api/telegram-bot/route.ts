@@ -295,7 +295,7 @@ bot.on('text', async ctx => {
 			session.completed = true
 			sessions.set(userId, session)
 
-			await ctx.reply('Для продовження роботи натисніть /book або /start')
+			await ctx.reply('Для продовження роботи натисніть /start')
 		} catch (err) {
 			console.error('Помилка при створенні події:', err)
 			await ctx.reply(
