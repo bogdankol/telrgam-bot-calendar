@@ -108,12 +108,18 @@ bot.action(/day_(.+?)_(.+)/, async ctx => {
 
 	if (slots.length === 0) return ctx.reply('Немає доступних часів на цей день.')
 
-	const buttons = slots.map(s => [
-		Markup.button.callback(
-			s.label,
-			`slot_${clickedSessionId}_${s.start.toMillis()}`,
-		),
-	])
+	const buttons = slots.map(s => {
+		// Формируем текст кнопки с временем и датой
+		const label = `${s.start.toFormat('dd.MM.yyyy')} — ${s.start.toFormat(
+			'HH:mm',
+		)}`
+		return [
+			Markup.button.callback(
+				label,
+				`slot_${clickedSessionId}_${s.start.toMillis()}`,
+			),
+		]
+	})
 
 	ctx.reply('Виберіть зручний час:', Markup.inlineKeyboard(buttons))
 })
