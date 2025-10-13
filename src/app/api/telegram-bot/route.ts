@@ -37,7 +37,9 @@ export const sessions = new Map<
 		name?: string
 		phone?: string
 		email?: string
+    reason?: string
 		waitingName?: boolean
+    waitingForReasonOfMeeting?: boolean
 		waitingPhone?: boolean
 		waitingEmail?: boolean
 		completed?: boolean
@@ -184,6 +186,21 @@ bot.on('text', async ctx => {
 		}
 		session.name = name
 		session.waitingName = false
+		session.waitingForReasonOfMeeting = true
+		sessions.set(userId, session)
+
+		await ctx.reply('Будь ласка, поділіться тим що вас турбує, із чим ви хочете впоратись за допомогою моєї допомоги:')
+		return
+	}
+
+  // тут мы ждем причину для обращения к Оле
+	if (session.waitingForReasonOfMeeting) {
+		const reason = ctx.message.text.trim()
+		if (reason.length < 10) {
+			return ctx.reply("❌ Опис проблеми занадто короткий, опишіть більш детально.")
+		}
+		session.reason = reason
+		session.waitingForReasonOfMeeting = false
 		session.waitingPhone = true
 		sessions.set(userId, session)
 
@@ -286,6 +303,7 @@ bot.on('text', async ctx => {
 					`📞 Телефон: ${session.phone}\n` +
 					`👤 Ім'я: ${session.name}\n` +
 					`📧 Email: ${session.email}\n\n` +
+          ` Опис підстави для звернення: ${session.reason}\n` +
 					`💰 Статус оплати: ❌ не оплачено\n` +
 					`Сума: ${amount} грн\n` +
 					`👉 Для оплати перейдіть за посиланням (${paymentLink}). Посилання дійсне 24 години.`,
