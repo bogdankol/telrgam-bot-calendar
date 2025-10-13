@@ -32,8 +32,8 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 	const startHour = 11
 	const endHour = 19
 	const meetingDuration = 60 // мин
-	const breakAfterMeeting = 30 // мин
-	const maxMeetingsPerDay = 5
+	// const breakAfterMeeting = 30 // мин
+	const maxMeetingsPerDay = 8
 
 	let slotStart = day.set({
 		hour: startHour,
@@ -65,7 +65,7 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 		}
 
 		slotCount++ // увеличиваем счетчик **всегда**, независимо от занятости слота
-		slotStart = slotEnd.plus({ minutes: breakAfterMeeting })
+		// slotStart = slotEnd.plus({ minutes: breakAfterMeeting })
 
 		if (slotStart.hour >= endHour) break
 	}
