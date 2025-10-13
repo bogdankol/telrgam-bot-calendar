@@ -1,12 +1,15 @@
 import Content from './content'
 
-export default async function Page({ searchParams }: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-}) {
+export default async function Page(
+//   { searchParams }: {
+//   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+// }
+) {
+  return <Content />
 
-  const invoiceId = (await searchParams )?.invoiceId
+  // const invoiceId = (await searchParams )?.invoiceId
 
-  if(typeof(invoiceId) !== 'string') throw Error('Wrong invoiceId dataFormat')
+  // if(typeof(invoiceId) !== 'string') throw Error('Wrong invoiceId dataFormat')
     
-  return <Content invoiceId={invoiceId} />
+  // return <Content invoiceId={invoiceId} />
 }
