@@ -61,8 +61,6 @@ bot_events.start(async ctx => {
 			`Доброго здоров'ячка! Наразі цей бот не працює, але не хвилюйтесь, через деякий час він обіцяє запрацювати.`,
 		)
 	}
-  
-  await checkNotificationBotAvailability()
 
   ctx.reply(
     `Доброго здоров'ячка! 👋 Натисніть на /book, для того, щоб забронювати зустріч.`,
@@ -70,6 +68,8 @@ bot_events.start(async ctx => {
 })
 
 bot_events.command('book', async ctx => {
+  await checkNotificationBotAvailability()
+  
 	const userId = String(ctx.from!.id)
 	sessions.delete(userId)
 
