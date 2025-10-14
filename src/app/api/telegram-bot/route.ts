@@ -74,7 +74,7 @@ bot_events.command('book', async ctx => {
     return
   }
 
-	const userId = String(ctx.from!.id)
+	const userId = String(ctx.from.id)
 	sessions.delete(userId)
 
 	await ctx.reply('🔄 Будь ласка зачекайте, йде завантаження доступних днів...')
@@ -172,6 +172,8 @@ bot_events.action(/slot_(.+?)_(\d+)/, async ctx => {
 bot_events.action(/meeting_(offline|online)/, async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
+
+  console.log({session})
 	if (!session || session.completed) {
 		return ctx.reply(
 			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново.',
