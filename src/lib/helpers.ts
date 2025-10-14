@@ -76,6 +76,7 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 // --- функция обработки контакта ---
 export function handlePhone(ctx: any, sessions: any) {
 	const userId = String(ctx.from!.id)
+  console.log({ctx})
 	const session = sessions.get(userId)
 	if (!session || !session.startTime) {
 		return ctx.reply('Для початку виберіть день та час зустрічі через /book.')
