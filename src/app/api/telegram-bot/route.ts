@@ -16,9 +16,9 @@ const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!
 const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL!
 const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, '\n')
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
+const TELEGRAM_EVENTS_BOT_TOKEN = process.env.TELEGRAM_EVENTS_BOT_TOKEN!
 const ADMIN_ID = process.env.BOT_ADMIN_ID!
-const bot = new Telegraf(BOT_TOKEN)
+const bot = new Telegraf(TELEGRAM_EVENTS_BOT_TOKEN)
 
 const auth = new google.auth.JWT({
 	email: GOOGLE_CLIENT_EMAIL,
