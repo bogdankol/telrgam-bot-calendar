@@ -239,16 +239,7 @@ bot.on('text', async ctx => {
 		}
 		session.reason = reason
 		session.waitingForReasonOfMeeting = false
-		// session.waitingPhone = true
 		sessions.set(userId, session)
-
-		// await ctx.reply(
-		// 	'Будь ласка, поділіться своїм номером телефону (у одному з наступних форматів:\n +0504122905\n, +050-412-29-05\n, +38-050-412-29-05\n, +380504122905)\n\n або надішліть свій контакт для підтвердження броні:',
-		// 	Markup.keyboard([Markup.button.contactRequest('📱 Надіслати контакт')])
-		// 		.oneTime()
-		// 		.resize(),
-		// )
-		// return
 
 		await ctx.reply(
 			'Будь ласка, оберіть формат зустрічі:',
@@ -315,7 +306,7 @@ bot.on('text', async ctx => {
 		const event: calendar_v3.Schema$Event = {
 			summary: 'Мітинг із психологом Ольгою Енгельс',
 			description: `Заброньовано через телеграм-бота.\nДані клієнта: ${session.name}\nТелефон: ${session.phone}\nEmail: ${session.email}\n💰 
-        Опис підстави для звернення: ${session.reason}\n`,
+        Опис підстави для звернення: ${session.reason}\n Фoрмат зустрічі: ${session.meetingType}`,
 			start: { dateTime: start.toISO(), timeZone: TIMEZONE },
 			end: { dateTime: end.toISO(), timeZone: TIMEZONE },
 			conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
@@ -335,6 +326,7 @@ bot.on('text', async ctx => {
 						? `🔗 Посилання на Google Meet: ${res.data.hangoutLink}\n`
 						: `ℹ️ Запрошення буде надіслано на ваш email.\n`) +
 					`📞 Телефон: ${session.phone}\n` +
+          `Формат зустрічі: ${session.meetingType}` +
 					`👤 Ім'я: ${session.name}\n` +
 					`📧 Email: ${session.email}\n\n` +
 					` Опис підстави для звернення: ${session.reason}\n`,
