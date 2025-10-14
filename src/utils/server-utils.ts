@@ -37,15 +37,56 @@ export async function envCheck() {
 }
 
 export async function checkNotificationBotAvailability() {
-  const TELEGRAM_NOTIFICATION_BOT_TOKEN = process.env.TELEGRAM_NOTIFICATION_BOT_TOKEN!
-  const ADMIN_ID = process.env.BOT_ADMIN_ID!
-  const notification_bot = new Telegraf(TELEGRAM_NOTIFICATION_BOT_TOKEN)
+	const TELEGRAM_NOTIFICATION_BOT_TOKEN =
+		process.env.TELEGRAM_NOTIFICATION_BOT_TOKEN!
+	const ADMIN_ID = process.env.BOT_ADMIN_ID!
+	const notification_bot = new Telegraf(TELEGRAM_NOTIFICATION_BOT_TOKEN)
+	const apiBase = `https://api.telegram.org/bot${TELEGRAM_NOTIFICATION_BOT_TOKEN}`
 
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_NOTIFICATION_BOT_TOKEN}/getChat?chat_id=${ADMIN_ID}`)
-    const data = await res.json()
-    console.log({data})
-  } catch(err: unknown) {
-    throw Error(`Error with notification bot:, ${err}`)
-  }
+	try {
+		// отправляем тихое сообщение
+		const sendRes = await fetch(`${apiBase}/sendMessage`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				chat_id: ADMIN_ID,
+				text: '🔕 Тестове повідомлення для перевірки доступу (без звуку).',
+				disable_notification: true,
+			}),
+		})
+
+		const sendData = await sendRes.json()
+
+		if (!sendData.ok) {
+			console.warn('⚠️ sendMessage returned not ok:', sendData)
+			return false
+		}
+
+		const messageId = sendData.result?.message_id
+		if (!messageId) {
+			console.warn('⚠️ No message_id in sendMessage result')
+			return false
+		}
+
+		// пробуем удалить тестовое сообщение, чтобы не оставлять след
+		try {
+			await fetch(`${apiBase}/deleteMessage`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					chat_id: ADMIN_ID,
+					message_id: messageId,
+				}),
+			})
+		} catch (deleteErr) {
+			console.warn('Не удалось удалить тестовое сообщение:', deleteErr)
+		}
+
+		console.log('✅ Notification bot is available and can send messages.')
+		return true
+	} catch (err: unknown) {
+		const errorText = (err as any)?.message || 'Unknown error'
+		console.error('❌ Error during notification bot check:', errorText)
+		return false
+	}
 }
