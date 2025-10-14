@@ -36,11 +36,11 @@ export const sessions = new Map<
 		name?: string
 		phone?: string
 		email?: string
-    reason?: string
+		reason?: string
 		waitingName?: boolean
-    meetingType?: string
-    waitingForReasonOfMeeting?: boolean
-    waitingForMeetingType?: boolean
+		meetingType?: string
+		waitingForReasonOfMeeting?: boolean
+		waitingForMeetingType?: boolean
 		waitingPhone?: boolean
 		waitingEmail?: boolean
 		completed?: boolean
@@ -165,22 +165,25 @@ bot.action(/meeting_(offline|online)/, async ctx => {
 	const session = sessions.get(userId)
 	if (!session || session.completed) {
 		return ctx.reply(
-			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново.'
+			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново.',
 		)
 	}
 
-	const type = ctx.match[1]  // offline или online
+	const type = ctx.match[1] // offline или online
 
-  if(!type) {
-    ctx.reply('Необхідно обрати один з двох запропонованих варіантів')
-  }
-  
-	session.meetingType = type.split('-')[1] 
+	if (!type) {
+		ctx.reply('Необхідно обрати один з двох запропонованих варіантів')
+	}
+
+	session.meetingType = type.split('-')[1]
 	session.waitingPhone = true
 	sessions.set(userId, session)
 
-	await ctx.reply(
-		'Будь ласка, поділіться тим що вас турбує, із чим ви хочете впоратись за допомогою моєї допомоги:'
+	ctx.reply(
+		'Будь ласка, поділіться своїм номером телефону (у одному з наступних форматів:\n +0504122905\n, +050-412-29-05\n, +38-050-412-29-05\n, +380504122905)\n\n або надішліть свій контакт для підтвердження броні:',
+		Markup.keyboard([Markup.button.contactRequest('📱 Надіслати контакт')])
+			.oneTime()
+			.resize(),
 	)
 })
 
@@ -215,18 +218,24 @@ bot.on('text', async ctx => {
 		session.waitingForReasonOfMeeting = true
 		sessions.set(userId, session)
 
-		await ctx.reply('Будь ласка, поділіться тим що вас турбує, із чим ви хочете впоратись за допомогою моєї допомоги:')
+		await ctx.reply(
+			'Будь ласка, поділіться тим що вас турбує, із чим ви хочете впоратись за допомогою моєї допомоги:',
+		)
 		return
 	}
 
-  // тут мы ждем причину для обращения к Оле
+	// тут мы ждем причину для обращения к Оле
 	if (session.waitingForReasonOfMeeting) {
 		const reason = ctx.message.text.trim()
 		if (reason.length < 10) {
-			return ctx.reply("❌ Опис проблеми занадто короткий, опишіть більш детально.")
+			return ctx.reply(
+				'❌ Опис проблеми занадто короткий, опишіть більш детально.',
+			)
 		}
-    if (reason.length > 500) {
-			return ctx.reply("❌ Опис проблеми занадто довгий, спробуйте описати менш детально.")
+		if (reason.length > 500) {
+			return ctx.reply(
+				'❌ Опис проблеми занадто довгий, спробуйте описати менш детально.',
+			)
 		}
 		session.reason = reason
 		session.waitingForReasonOfMeeting = false
@@ -241,14 +250,19 @@ bot.on('text', async ctx => {
 		// )
 		// return
 
-    await ctx.reply(
-      'Будь ласка, оберіть формат зустрічі:',
-      Markup.inlineKeyboard([
-        [Markup.button.callback('🏢 Офлайн в офісі (адреса 1 буд 11 офіс 111 поверх 1111)', `meeting_offline`)],
-        [Markup.button.callback('💻 Онлайн (Google Meet)', `meeting_online`)],
-      ])
-    )
-    return
+		await ctx.reply(
+			'Будь ласка, оберіть формат зустрічі:',
+			Markup.inlineKeyboard([
+				[
+					Markup.button.callback(
+						'🏢 Офлайн в офісі (адреса 1 буд 11 офіс 111 поверх 1111)',
+						`meeting_offline`,
+					),
+				],
+				[Markup.button.callback('💻 Онлайн (Google Meet)', `meeting_online`)],
+			]),
+		)
+		return
 	}
 
 	// ждем телефон
@@ -300,11 +314,7 @@ bot.on('text', async ctx => {
 
 		const event: calendar_v3.Schema$Event = {
 			summary: 'Мітинг із психологом Ольгою Енгельс',
-			description: `Заброньовано через телеграм-бота.\nДані клієнта: ${
-				session.name
-			}\nТелефон: ${session.phone}\nEmail: ${
-				session.email
-			}\n💰 
+			description: `Заброньовано через телеграм-бота.\nДані клієнта: ${session.name}\nТелефон: ${session.phone}\nEmail: ${session.email}\n💰 
         Опис підстави для звернення: ${session.reason}\n`,
 			start: { dateTime: start.toISO(), timeZone: TIMEZONE },
 			end: { dateTime: end.toISO(), timeZone: TIMEZONE },
@@ -327,8 +337,8 @@ bot.on('text', async ctx => {
 					`📞 Телефон: ${session.phone}\n` +
 					`👤 Ім'я: ${session.name}\n` +
 					`📧 Email: ${session.email}\n\n` +
-          ` Опис підстави для звернення: ${session.reason}\n` 
-            // + { parse_mode: 'Markdown' },
+					` Опис підстави для звернення: ${session.reason}\n`,
+				// + { parse_mode: 'Markdown' },
 			)
 
 			session.completed = true
