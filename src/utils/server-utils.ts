@@ -10,6 +10,7 @@ export async function envCheck() {
   const basicUrl = !!process.env.BASIC_URL
   // const fee = !!process.env.FEE_FOR_SERVICE_IN_GRN
   const db = !!process.env.DATABASE_URL
+  const adminId = !!process.env.BOT_ADMIN_ID
 
 	if (
 		// !monoKeyAvailable ||
@@ -20,7 +21,8 @@ export async function envCheck() {
 		!googleServiceClientMail ||
     !basicUrl ||
     // !fee ||
-    !db
+    !db ||
+    !adminId
 	) {
 		console.error('One of variables is missing')
     return 

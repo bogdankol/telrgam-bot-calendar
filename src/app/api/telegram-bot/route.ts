@@ -11,13 +11,14 @@ import {
 	handlePhone,
 } from '@/lib/helpers'
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
-const bot = new Telegraf(BOT_TOKEN)
-
 // --- Google Calendar настройка ---
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!
 const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL!
 const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, '\n')
+
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
+const ADMIN_ID = process.env.BOT_ADMIN_ID!
+const bot = new Telegraf(BOT_TOKEN)
 
 const auth = new google.auth.JWT({
 	email: GOOGLE_CLIENT_EMAIL,
@@ -170,16 +171,16 @@ bot.action(/meeting_(offline|online)/, async ctx => {
 	}
 
 	const type = ctx.match[1] // offline или online
-  console.log({ctx})
+	console.log({ ctx })
 
 	if (!type) {
 		ctx.reply('Необхідно обрати один з двох запропонованих варіантів')
 	}
-  if(type === 'offline') {
-    session.meetingType = `Зустріч в офісі, за адресою: вулиця із дуже довгою назвою, місто із довгою назвою, підєїзд із номером 1233213, номер офису 1231233`
-  } else {
-    session.meetingType = `Онлайн зустріч. Посилання буде надіслано пізніше на вказаний вами email`
-  }
+	if (type === 'offline') {
+		session.meetingType = `Зустріч в офісі, за адресою: вулиця із дуже довгою назвою, місто із довгою назвою, підєїзд із номером 1233213, номер офису 1231233`
+	} else {
+		session.meetingType = `Онлайн зустріч. Посилання буде надіслано пізніше на вказаний вами email`
+	}
 
 	session.waitingPhone = true
 	sessions.set(userId, session)
@@ -331,7 +332,7 @@ bot.on('text', async ctx => {
 						? `🔗 Посилання на Google Meet: ${res.data.hangoutLink}\n`
 						: `ℹ️ Запрошення буде надіслано на ваш email.\n`) +
 					`📞 Телефон: ${session.phone}\n` +
-          `Формат зустрічі: ${session.meetingType}\n` +
+					`Формат зустрічі: ${session.meetingType}\n` +
 					`👤 Ім'я: ${session.name}\n` +
 					`📧 Email: ${session.email}\n\n` +
 					` Опис підстави для звернення: ${session.reason}\n`,
@@ -340,6 +341,18 @@ bot.on('text', async ctx => {
 
 			session.completed = true
 			sessions.set(userId, session)
+
+			await bot.telegram.sendMessage(
+				ADMIN_ID,
+				`📢 *НОВЕ БРОНЮВАННЯ*\n\n` +
+        `📅 Дата та час: ${start.toFormat('dd.MM.yyyy HH:mm')}\n` +
+        `📞 Телефон: ${session.phone}\n` +
+        `Формат зустрічі: ${session.meetingType}\n` +
+        `👤 Ім'я: ${session.name}\n` +
+        `📧 Email: ${session.email}\n\n` +
+        ` Опис підстави для звернення: ${session.reason}\n`,
+				{ parse_mode: 'Markdown' },
+			)
 
 			await ctx.reply('Для продовження роботи натисніть /start')
 		} catch (err) {
