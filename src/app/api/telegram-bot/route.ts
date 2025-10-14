@@ -52,8 +52,11 @@ export const sessions = new Map<
 
 // --- Команды бота ---
 bot_events.start(async ctx => {
+  console.log('before start', {sessions})
 	const userId = String(ctx.from!.id)
 	sessions.delete(userId)
+
+  console.log('after start', {sessions})
 
 	const allEnvIsPresent = await envCheck()
 	if (!allEnvIsPresent) {
@@ -74,8 +77,10 @@ bot_events.command('book', async ctx => {
     return
   }
 
+  console.log('before book', {sessions})
 	const userId = String(ctx.from.id)
 	sessions.delete(userId)
+  console.log('before after', {sessions})
 
 	await ctx.reply('🔄 Будь ласка зачекайте, йде завантаження доступних днів...')
 
@@ -105,9 +110,11 @@ bot_events.command('book', async ctx => {
 
 // --- Выбор дня ---
 bot_events.action(/day_(.+?)_(.+)/, async ctx => {
+  console.log('before day selection', {sessions})
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 	const [clickedSessionId, dayISO] = [ctx.match[1], ctx.match[2]]
+  console.log('after day selection', {session, sessions})
 
 	if (!session || session.sessionId !== clickedSessionId || session.completed) {
 		return ctx.reply(
