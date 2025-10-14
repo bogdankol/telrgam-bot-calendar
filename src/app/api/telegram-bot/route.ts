@@ -179,7 +179,6 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 	}
 
 	const type = ctx.match[1] // offline или online
-	console.log({ ctx })
 
 	if (!type) {
 		ctx.reply('Необхідно обрати один з двох запропонованих варіантів')
