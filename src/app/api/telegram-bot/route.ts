@@ -175,8 +175,12 @@ bot.action(/meeting_(offline|online)/, async ctx => {
 	if (!type) {
 		ctx.reply('Необхідно обрати один з двох запропонованих варіантів')
 	}
+  if(type === 'offline') {
+    session.meetingType = `Зустріч оффлайн в офісі, за адресою: вулиця із дуже довгою назвою, місто із довгою назвою, підєїзд із номером 1233213, номер офису 1231233`
+  } else {
+    session.meetingType = `Онлайн зістріч. Посилання буде надіслано пізніше на вказаний вами email`
+  }
 
-	session.meetingType = type[1]
 	session.waitingPhone = true
 	sessions.set(userId, session)
 
