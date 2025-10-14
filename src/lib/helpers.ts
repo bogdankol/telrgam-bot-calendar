@@ -76,7 +76,7 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 // --- функция обработки контакта ---
 export function handlePhone(ctx: any, sessions: any) {
 	const userId = String(ctx.from!.id)
-  console.log({ctx, userId, from: ctx?.from, ctxString: JSON.stringify(ctx)})
+  console.log({ctx, userId, from: ctx?.from, ctxString: JSON.parse(JSON.stringify(ctx)).update.message})
 	const session = sessions.get(userId)
 	if (!session || !session.startTime) {
 		return ctx.reply('Для початку виберіть день та час зустрічі через /book.')
@@ -91,6 +91,8 @@ export function handlePhone(ctx: any, sessions: any) {
 		ctx.reply('Дякую! тепер введіть email на який буде надіслано запрошення:')
 	}
 }
+
+
 
 // tell phone number check
 export function isValidPhone(phone: string) {
