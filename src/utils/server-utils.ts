@@ -58,13 +58,13 @@ export async function checkNotificationBotAvailability() {
 		const sendData = await sendRes.json()
 
 		if (!sendData.ok) {
-			console.warn('⚠️ sendMessage returned not ok:', sendData)
+			console.error('⚠️ sendMessage returned not ok:', sendData)
 			return false
 		}
 
 		const messageId = sendData.result?.message_id
 		if (!messageId) {
-			console.warn('⚠️ No message_id in sendMessage result')
+			console.error('⚠️ No message_id in sendMessage result')
 			return false
 		}
 

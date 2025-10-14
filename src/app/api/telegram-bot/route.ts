@@ -68,8 +68,12 @@ bot_events.start(async ctx => {
 })
 
 bot_events.command('book', async ctx => {
-  await checkNotificationBotAvailability()
-  
+  const notificationBotWorks = await checkNotificationBotAvailability()
+  if(!notificationBotWorks) {
+    ctx.reply('Вибачте, але сталася помилка. Ми вже працюємо над цим. Будь ласка, повторіть спробу пізніше.')
+    return
+  }
+
 	const userId = String(ctx.from!.id)
 	sessions.delete(userId)
 
