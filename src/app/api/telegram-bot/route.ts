@@ -170,6 +170,7 @@ bot.action(/meeting_(offline|online)/, async ctx => {
 	}
 
 	const type = ctx.match[1] // offline или online
+  console.log({ctx})
 
 	if (!type) {
 		ctx.reply('Необхідно обрати один з двох запропонованих варіантів')
@@ -326,7 +327,7 @@ bot.on('text', async ctx => {
 						? `🔗 Посилання на Google Meet: ${res.data.hangoutLink}\n`
 						: `ℹ️ Запрошення буде надіслано на ваш email.\n`) +
 					`📞 Телефон: ${session.phone}\n` +
-          `Формат зустрічі: ${session.meetingType}` +
+          `Формат зустрічі: ${session.meetingType}\n` +
 					`👤 Ім'я: ${session.name}\n` +
 					`📧 Email: ${session.email}\n\n` +
 					` Опис підстави для звернення: ${session.reason}\n`,
