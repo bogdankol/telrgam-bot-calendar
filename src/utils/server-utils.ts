@@ -7,10 +7,12 @@ export async function envCheck() {
 	const calendarId = !!process.env.GOOGLE_CALENDAR_ID
 	const googleServiceClientMail = !!process.env.GOOGLE_CLIENT_EMAIL
 	const googlePrivateKey = !!process.env.GOOGLE_PRIVATE_KEY
-  const basicUrl = !!process.env.BASIC_URL
-  // const fee = !!process.env.FEE_FOR_SERVICE_IN_GRN
-  const db = !!process.env.DATABASE_URL
-  const adminId = !!process.env.BOT_ADMIN_ID
+	const basicUrl = !!process.env.BASIC_URL
+	// const fee = !!process.env.FEE_FOR_SERVICE_IN_GRN
+	const db = !!process.env.DATABASE_URL
+	const adminId = !!process.env.BOT_ADMIN_ID
+	const telegramNotificationBotToken =
+		!!process.env.TELEGRAM_NOTIFICATION_BOT_TOKEN
 
 	if (
 		// !monoKeyAvailable ||
@@ -19,14 +21,15 @@ export async function envCheck() {
 		!calendarId ||
 		!googlePrivateKey ||
 		!googleServiceClientMail ||
-    !basicUrl ||
-    // !fee ||
-    !db ||
-    !adminId
+		!basicUrl ||
+		// !fee ||
+		!db ||
+		!adminId ||
+		!telegramNotificationBotToken
 	) {
 		console.error('One of variables is missing')
-    return 
-  }
+		return
+	}
 
 	return true
 }

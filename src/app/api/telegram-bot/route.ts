@@ -17,8 +17,10 @@ const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL!
 const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, '\n')
 
 const TELEGRAM_EVENTS_BOT_TOKEN = process.env.TELEGRAM_EVENTS_BOT_TOKEN!
+const TELEGRAM_NOTIFICATION_BOT_TOKEN = process.env.TELEGRAM_NOTIFICATION_BOT_TOKEN!
 const ADMIN_ID = process.env.BOT_ADMIN_ID!
-const bot = new Telegraf(TELEGRAM_EVENTS_BOT_TOKEN)
+const bot_events = new Telegraf(TELEGRAM_EVENTS_BOT_TOKEN)
+const bot_notification = new Telegraf(TELEGRAM_NOTIFICATION_BOT_TOKEN)
 
 const auth = new google.auth.JWT({
 	email: GOOGLE_CLIENT_EMAIL,
@@ -49,7 +51,7 @@ export const sessions = new Map<
 >()
 
 // --- Команды бота ---
-bot.start(async ctx => {
+bot_events.start(async ctx => {
 	const userId = String(ctx.from!.id)
 	sessions.delete(userId)
 
@@ -65,7 +67,7 @@ bot.start(async ctx => {
 	}
 })
 
-bot.command('book', async ctx => {
+bot_events.command('book', async ctx => {
 	const userId = String(ctx.from!.id)
 	sessions.delete(userId)
 
@@ -96,7 +98,7 @@ bot.command('book', async ctx => {
 })
 
 // --- Выбор дня ---
-bot.action(/day_(.+?)_(.+)/, async ctx => {
+bot_events.action(/day_(.+?)_(.+)/, async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 	const [clickedSessionId, dayISO] = [ctx.match[1], ctx.match[2]]
@@ -129,7 +131,7 @@ bot.action(/day_(.+?)_(.+)/, async ctx => {
 })
 
 // --- Выбор слота и запрос имени ---
-bot.action(/slot_(.+?)_(\d+)/, async ctx => {
+bot_events.action(/slot_(.+?)_(\d+)/, async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 	const [clickedSessionId, timestampStr] = [ctx.match[1], ctx.match[2]]
@@ -161,7 +163,7 @@ bot.action(/slot_(.+?)_(\d+)/, async ctx => {
 })
 
 // --- Выбор формата встречи ---
-bot.action(/meeting_(offline|online)/, async ctx => {
+bot_events.action(/meeting_(offline|online)/, async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 	if (!session || session.completed) {
@@ -194,10 +196,10 @@ bot.action(/meeting_(offline|online)/, async ctx => {
 })
 
 // --- Получение контакта ---
-bot.on('contact', ctx => handlePhone(ctx, sessions))
+bot_events.on('contact', ctx => handlePhone(ctx, sessions))
 
 // --- Обработка текстовых сообщений ---
-bot.on('text', async ctx => {
+bot_events.on('text', async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 
@@ -342,7 +344,7 @@ bot.on('text', async ctx => {
 			session.completed = true
 			sessions.set(userId, session)
 
-			await bot.telegram.sendMessage(
+			await bot_notification.telegram.sendMessage(
 				ADMIN_ID,
 				`📢 *НОВЕ БРОНЮВАННЯ*\n\n` +
         `📅 Дата та час: ${start.toFormat('dd.MM.yyyy HH:mm')}\n` +
@@ -374,7 +376,7 @@ bot.on('text', async ctx => {
 export async function POST(req: NextRequest) {
 	try {
 		const body = await req.json()
-		await bot.handleUpdate(body)
+		await bot_events.handleUpdate(body)
 		return NextResponse.json({ ok: true })
 	} catch (err) {
 		console.error('Telegram webhook error:', err)
