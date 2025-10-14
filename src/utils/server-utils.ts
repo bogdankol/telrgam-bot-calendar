@@ -1,5 +1,7 @@
 'use server'
 
+import { Telegraf } from 'telegraf'
+
 export async function envCheck() {
 	// const monoKeyAvailable = !!process.env.MONO_API_TOKEN_TEST
 	// const monoBasicUrlAvailable = !!process.env.MONO_API_BASIC_URL
@@ -32,4 +34,18 @@ export async function envCheck() {
 	}
 
 	return true
+}
+
+export async function checkNotificationBotAvailability() {
+  const TELEGRAM_NOTIFICATION_BOT_TOKEN = process.env.TELEGRAM_NOTIFICATION_BOT_TOKEN!
+  const ADMIN_ID = process.env.BOT_ADMIN_ID!
+  const notification_bot = new Telegraf(TELEGRAM_NOTIFICATION_BOT_TOKEN)
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_NOTIFICATION_BOT_TOKEN}/getChat?chat_id=${ADMIN_ID}`)
+    const data = await res.json()
+    console.log({data})
+  } catch(err: unknown) {
+    throw Error(`Error with notification bot:, ${err}`)
+  }
 }

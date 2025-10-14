@@ -2,7 +2,7 @@ import { Telegraf, Markup } from 'telegraf'
 import { google, calendar_v3 } from 'googleapis'
 import { NextRequest, NextResponse } from 'next/server'
 import { DateTime } from 'luxon'
-import { envCheck } from '@/utils/server-utils'
+import { checkNotificationBotAvailability, envCheck } from '@/utils/server-utils'
 // import { createNewInvoiceLink } from '@/actions/server-actions'
 import { TIMEZONE, SCOPES } from '@/lib/vars'
 import {
@@ -60,11 +60,13 @@ bot_events.start(async ctx => {
 		ctx.reply(
 			`Доброго здоров'ячка! Наразі цей бот не працює, але не хвилюйтесь, через деякий час він обіцяє запрацювати.`,
 		)
-	} else {
-		ctx.reply(
-			`Доброго здоров'ячка! 👋 Натисніть на /book, для того, щоб забронювати зустріч.`,
-		)
 	}
+  
+  await checkNotificationBotAvailability()
+
+  ctx.reply(
+    `Доброго здоров'ячка! 👋 Натисніть на /book, для того, щоб забронювати зустріч.`,
+  )
 })
 
 bot_events.command('book', async ctx => {
@@ -358,7 +360,7 @@ bot_events.on('text', async ctx => {
 
 			await ctx.reply('Для продовження роботи натисніть /start')
 		} catch (err) {
-			console.error('Помилка при створенні події:', err)
+			console.error('Помилка при створенні події на фінальному етапі:', err)
 			await ctx.reply(
 				'⚠️ Не вдалось забронювати час та дату. Будь ласка, спробуйте пізніше.',
 			)
