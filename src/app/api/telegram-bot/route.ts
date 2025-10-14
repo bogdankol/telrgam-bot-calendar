@@ -176,7 +176,7 @@ bot.action(/meeting_(offline|online)/, async ctx => {
 		ctx.reply('Необхідно обрати один з двох запропонованих варіантів')
 	}
 
-	session.meetingType = type.split('-')[1]
+	session.meetingType = type[1]
 	session.waitingPhone = true
 	sessions.set(userId, session)
 
