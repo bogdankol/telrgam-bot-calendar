@@ -173,7 +173,7 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 
-  console.log({session})
+  console.log({session, sessions})
 	if (!session || session.completed) {
 		return ctx.reply(
 			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново.',
