@@ -2,7 +2,10 @@ import { Telegraf, Markup } from 'telegraf'
 import { google, calendar_v3 } from 'googleapis'
 import { NextRequest, NextResponse } from 'next/server'
 import { DateTime } from 'luxon'
-import { checkNotificationBotAvailability, envCheck } from '@/utils/server-utils'
+import {
+	checkNotificationBotAvailability,
+	envCheck,
+} from '@/utils/server-utils'
 // import { createNewInvoiceLink } from '@/actions/server-actions'
 import { TIMEZONE, SCOPES } from '@/lib/vars'
 import {
@@ -18,7 +21,8 @@ const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL!
 const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, '\n')
 
 const TELEGRAM_EVENTS_BOT_TOKEN = process.env.TELEGRAM_EVENTS_BOT_TOKEN!
-const TELEGRAM_NOTIFICATION_BOT_TOKEN = process.env.TELEGRAM_NOTIFICATION_BOT_TOKEN!
+const TELEGRAM_NOTIFICATION_BOT_TOKEN =
+	process.env.TELEGRAM_NOTIFICATION_BOT_TOKEN!
 const ADMIN_ID = process.env.BOT_ADMIN_ID!
 const bot_events = new Telegraf(TELEGRAM_EVENTS_BOT_TOKEN)
 const bot_notification = new Telegraf(TELEGRAM_NOTIFICATION_BOT_TOKEN)
@@ -53,11 +57,11 @@ export const sessions = new Map<
 
 // --- Команды бота ---
 bot_events.start(async ctx => {
-  console.log('before start', {sessions})
+	console.log('before start', { sessions })
 	const userId = String(ctx.from!.id)
 	sessions.delete(userId)
 
-  console.log('after start', {sessions})
+	console.log('after start', { sessions })
 
 	const allEnvIsPresent = await envCheck()
 	if (!allEnvIsPresent) {
@@ -66,28 +70,30 @@ bot_events.start(async ctx => {
 		)
 	}
 
-  ctx.reply(
-    `Доброго здоров'ячка! 👋 Натисніть на /book, для того, щоб забронювати зустріч.`,
-  )
+	ctx.reply(
+		`Доброго здоров'ячка! 👋 Натисніть на /book, для того, щоб забронювати зустріч.`,
+	)
 })
 
 bot_events.command('book', async ctx => {
-  const notificationBotWorks = await checkNotificationBotAvailability()
-  if(!notificationBotWorks) {
-    ctx.reply('Вибачте, але сталася помилка. Ми вже працюємо над цим. Будь ласка, повторіть спробу пізніше.')
-    return
-  }
+	const notificationBotWorks = await checkNotificationBotAvailability()
+	if (!notificationBotWorks) {
+		ctx.reply(
+			'Вибачте, але сталася помилка. Ми вже працюємо над цим. Будь ласка, повторіть спробу пізніше.',
+		)
+		return
+	}
 
-  console.log('before book', {sessions})
+	console.log('before book', { sessions })
 	const userId = String(ctx.from.id)
 	sessions.delete(userId)
-  console.log('before after', {sessions})
+	console.log('before after', { sessions })
 
 	await ctx.reply('🔄 Будь ласка зачекайте, йде завантаження доступних днів...')
 
 	try {
 		const days = await getAvailableDays(30)
-    const sessionId = uuidv4().split('-').join('').substring(0, 30)
+		const sessionId = uuidv4().split('-').join('').substring(0, 30)
 		sessions.set(userId, { sessionId })
 
 		const buttons = days.map(d => [
@@ -111,11 +117,11 @@ bot_events.command('book', async ctx => {
 
 // --- Выбор дня ---
 bot_events.action(/day_(.+?)_(.+)/, async ctx => {
-  console.log('before day selection', {sessions})
+	console.log('before day selection', { sessions })
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 	const [clickedSessionId, dayISO] = [ctx.match[1], ctx.match[2]]
-  console.log('after day selection', {session, sessions})
+	console.log('after day selection', { session, sessions })
 
 	if (!session || session.sessionId !== clickedSessionId || session.completed) {
 		return ctx.reply(
@@ -181,7 +187,7 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 
-  console.log({session, sessions})
+	console.log({ session, sessions })
 	if (!session || session.completed) {
 		return ctx.reply(
 			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново.',
@@ -208,6 +214,65 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 			.oneTime()
 			.resize(),
 	)
+})
+
+bot_events.action('get_meetings', async ctx => {
+	const userId = String(ctx.from.id)
+	await ctx.answerCbQuery('Збираю інформацію про ваші мітинги...')
+
+	try {
+		// Берём текущую дату и диапазон 2 недели вперёд
+		const now = DateTime.now().setZone(TIMEZONE)
+		const twoWeeksLater = now.plus({ weeks: 2 })
+
+		// Получаем все события за период
+		const res = await calendar.events.list({
+			calendarId: CALENDAR_ID,
+			timeMin: now.toISO(),
+			timeMax: twoWeeksLater.toISO(),
+			singleEvents: true,
+			orderBy: 'startTime',
+		} as calendar_v3.Params$Resource$Events$List)
+
+		const events = res?.data?.items || []
+
+		console.log({ events })
+
+		// Фильтруем по clientId
+		const userEvents = events.filter(ev =>
+			ev.description?.includes(`clientId: ${userId}`),
+		)
+
+		if (userEvents.length === 0) {
+			return ctx.reply(
+				'❌ У вас немає запланованих зустрічей на наступні 2 тижні.',
+			)
+		}
+
+		// Форматируем список для отправки
+		const message = userEvents
+			.map(ev => {
+				const startISO = ev.start?.dateTime || ev.start?.date
+				const start = startISO
+					? DateTime.fromISO(startISO)
+							.setZone(TIMEZONE)
+							.toFormat('dd.MM.yyyy HH:mm')
+					: 'невідомо'
+				return `🗓 *${
+					ev.summary || 'Без назви'
+				}*\n📅 ${start}\nФормат зустрічі: ${
+					ev.description?.match(/Фoрмат зустрічі: (.*)/)?.[1] || 'невідомо'
+				}`
+			})
+			.join('\n\n')
+
+		await ctx.reply(`Ось ваші мітинги на найближчі 2 тижні:\n\n${message}`)
+	} catch (err) {
+		console.error('Помилка отримання подій:', err)
+		await ctx.reply(
+			'⚠️ Сталася помилка під час отримання мітингів. Спробуйте пізніше.',
+		)
+	}
 })
 
 // --- Получение контакта ---
@@ -329,7 +394,7 @@ bot_events.on('text', async ctx => {
 		const event: calendar_v3.Schema$Event = {
 			summary: 'Мітинг із психологом Ольгою Енгельс',
 			description: `Заброньовано через телеграм-бота.\nДані клієнта: ${session.name}\nТелефон: ${session.phone}\nEmail: ${session.email}\n💰 
-        Опис підстави для звернення: ${session.reason}\n Фoрмат зустрічі: ${session.meetingType}`,
+        Фoрмат зустрічі: ${session.meetingType}\n Опис підстави для звернення: ${session.reason}\n\n\n clientId: ${userId} `,
 			start: { dateTime: start.toISO(), timeZone: TIMEZONE },
 			end: { dateTime: end.toISO(), timeZone: TIMEZONE },
 			conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
@@ -362,16 +427,18 @@ bot_events.on('text', async ctx => {
 			await bot_notification.telegram.sendMessage(
 				ADMIN_ID,
 				`📢 *НОВЕ БРОНЮВАННЯ*\n\n` +
-        `📅 Дата та час: ${start.toFormat('dd.MM.yyyy HH:mm')}\n` +
-        `📞 Телефон: ${session.phone}\n` +
-        `Формат зустрічі: ${session.meetingType}\n` +
-        `👤 Ім'я: ${session.name}\n` +
-        `📧 Email: ${session.email}\n\n` +
-        ` Опис підстави для звернення: ${session.reason}\n`,
+					`📅 Дата та час: ${start.toFormat('dd.MM.yyyy HH:mm')}\n` +
+					`📞 Телефон: ${session.phone}\n` +
+					`Формат зустрічі: ${session.meetingType}\n` +
+					`👤 Ім'я: ${session.name}\n` +
+					`📧 Email: ${session.email}\n\n` +
+					` Опис підстави для звернення: ${session.reason}\n`,
 				{ parse_mode: 'Markdown' },
 			)
 
-			await ctx.reply('Для продовження роботи натисніть /start')
+			await ctx.reply(
+				'Для того, щоб забронювати ще одну зустріч, натисніть /start. Для того, щоб отримати інформацію про всі наші зустрічі на найближчі два тижні, натисніть /get_meetings',
+			)
 		} catch (err) {
 			console.error('Помилка при створенні події на фінальному етапі:', err)
 			await ctx.reply(
