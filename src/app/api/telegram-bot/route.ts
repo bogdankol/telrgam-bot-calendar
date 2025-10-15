@@ -218,7 +218,7 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 
 bot_events.command('get_meetings', async ctx => {
 	const userId = String(ctx.from.id)
-	await ctx.answerCbQuery('Збираю інформацію про ваші мітинги...')
+	await ctx.reply('Збираю інформацію про ваші мітинги...')
 
 	try {
 		// Берём текущую дату и диапазон 2 недели вперёд
