@@ -10,7 +10,7 @@ import {
 	getAvailableSlotsForDay,
 	handlePhone,
 } from '@/lib/helpers'
-// import { v4 as uuidv4 } from 'uuid'
+import { v4 as uuidv4 } from 'uuid'
 
 // --- Google Calendar настройка ---
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!
@@ -87,8 +87,7 @@ bot_events.command('book', async ctx => {
 
 	try {
 		const days = await getAvailableDays(30)
-		// const sessionId = uuidv4()
-    const sessionId = Math.random().toString(36).substring(2, 10)
+    const sessionId = uuidv4().split('-').join('')
 		sessions.set(userId, { sessionId })
 
 		const buttons = days.map(d => [
