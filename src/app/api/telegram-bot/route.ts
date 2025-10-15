@@ -62,12 +62,12 @@ bot_events.start(async ctx => {
 
 	const allEnvIsPresent = await envCheck()
 	if (!allEnvIsPresent) {
-		ctx.reply(
+		await ctx.reply(
 			`Доброго здоров'ячка! Наразі цей бот не працює, але не хвилюйтесь, через деякий час він обіцяє запрацювати.`,
 		)
 	}
 
-	ctx.reply(
+	await ctx.reply(
 		`Доброго здоров'ячка! 👋 Натисніть на /book, для того, щоб забронювати зустріч. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.`,
     Markup.keyboard([['Отримати інформацію про майбутні мітинги']])
       .resize()
@@ -78,7 +78,7 @@ bot_events.start(async ctx => {
 bot_events.command('book', async ctx => {
 	const notificationBotWorks = await checkNotificationBotAvailability()
 	if (!notificationBotWorks) {
-		ctx.reply(
+		await ctx.reply(
 			'Вибачте, але сталася помилка. Ми вже працюємо над цим. Будь ласка, повторіть спробу пізніше.',
 		)
 		return
@@ -120,7 +120,7 @@ bot_events.action(/day_(.+?)_(.+)/, async ctx => {
 	const [clickedSessionId, dayISO] = [ctx.match[1], ctx.match[2]]
 
 	if (!session || session.sessionId !== clickedSessionId || session.completed) {
-		return ctx.reply(
+		return await ctx.reply(
 			'🤖 Поточне бронювання вже завершено або застаріло. Натисніть /book, щоб почати заново.  Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
 		)
 	}
@@ -128,7 +128,7 @@ bot_events.action(/day_(.+?)_(.+)/, async ctx => {
 	const day = DateTime.fromISO(dayISO).setZone(TIMEZONE)
 	const slots = await getAvailableSlotsForDay(day)
 
-	if (slots.length === 0) return ctx.reply('Немає доступних часів на цей день.')
+	if (slots.length === 0) return await ctx.reply('Немає доступних часів на цей день.')
 
 	const buttons = slots.map(s => {
 		// Формируем текст кнопки с временем и датой
@@ -153,7 +153,7 @@ bot_events.action(/slot_(.+?)_(\d+)/, async ctx => {
 	const [clickedSessionId, timestampStr] = [ctx.match[1], ctx.match[2]]
 
 	if (!session || session.sessionId !== clickedSessionId || session.completed) {
-		return ctx.reply(
+		return await ctx.reply(
 			'🤖 Поточне бронювання вже завершено або застаріло. Натисніть /book, щоб почати заново. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
 		)
 	}
@@ -165,7 +165,7 @@ bot_events.action(/slot_(.+?)_(\d+)/, async ctx => {
 	const slots = await getAvailableSlotsForDay(day)
 	const slotTaken = !slots.some(s => s.start.toMillis() === timestamp)
 	if (slotTaken) {
-		return ctx.reply(
+		return await ctx.reply(
 			'❌ На жаль, вибраний час вже зайнятий. Будь ласка, оберіть інший час.',
 		)
 	}
@@ -184,7 +184,7 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 	const session = sessions.get(userId)
 
 	if (!session || session.completed) {
-		return ctx.reply(
+		return await ctx.reply(
 			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
 		)
 	}
@@ -192,7 +192,7 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 	const type = ctx.match[1] // offline или online
 
 	if (!type) {
-		ctx.reply('Необхідно обрати один з двох запропонованих варіантів')
+		await ctx.reply('Необхідно обрати один з двох запропонованих варіантів')
 	}
 	if (type === 'offline') {
 		session.meetingType = `Зустріч в офісі, за адресою: вулиця із дуже довгою назвою, місто із довгою назвою, підєїзд із номером 1233213, номер офису 1231233`
@@ -203,7 +203,7 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 	session.waitingPhone = true
 	sessions.set(userId, session)
 
-	ctx.reply(
+	await ctx.reply(
 		'Будь ласка, поділіться своїм номером телефону (у одному з наступних форматів:\n +0504122905\n, +050-412-29-05\n, +38-050-412-29-05\n, +380504122905)\n\n або надішліть свій контакт для підтвердження броні:',
 		Markup.keyboard([Markup.button.contactRequest('📱 Надіслати контакт')])
 			.oneTime()
@@ -239,7 +239,7 @@ bot_events.action('Отримати інформацію про майбутні
 		)
 
 		if (userEvents.length === 0) {
-			return ctx.reply(
+			return await ctx.reply(
 				'❌ У вас немає запланованих зустрічей на наступні 2 тижні.',
 			)
 		}
@@ -297,7 +297,7 @@ bot_events.command('get_meetings', async ctx => {
 		)
 
 		if (userEvents.length === 0) {
-			return ctx.reply(
+			return await ctx.reply(
 				'❌ У вас немає запланованих зустрічей на наступні 2 тижні.',
 			)
 		}
@@ -336,13 +336,13 @@ bot_events.on('text', async ctx => {
 	const session = sessions.get(userId)
 
 	if (!session) {
-		return ctx.reply(
+		return await ctx.reply(
 			'🤖 Для початку натисніть /book, щоб розпочати бронювання зустрічі. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
 		)
 	}
 
 	if (session.completed) {
-		return ctx.reply(
+		return await ctx.reply(
 			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
 		)
 	}
@@ -351,7 +351,7 @@ bot_events.on('text', async ctx => {
 	if (session.waitingName) {
 		const name = ctx.message.text.trim()
 		if (name.length < 2) {
-			return ctx.reply("❌ Ім'я занадто коротке. Введіть своє ім'я ще раз:")
+			return await ctx.reply("❌ Ім'я занадто коротке. Введіть своє ім'я ще раз:")
 		}
 		session.name = name
 		session.waitingName = false
@@ -368,12 +368,12 @@ bot_events.on('text', async ctx => {
 	if (session.waitingForReasonOfMeeting) {
 		const reason = ctx.message.text.trim()
 		if (reason.length < 10) {
-			return ctx.reply(
+			return await ctx.reply(
 				'❌ Опис проблеми занадто короткий, опишіть більш детально.',
 			)
 		}
 		if (reason.length > 500) {
-			return ctx.reply(
+			return await ctx.reply(
 				'❌ Опис проблеми занадто довгий, спробуйте описати менш детально.',
 			)
 		}
@@ -403,7 +403,7 @@ bot_events.on('text', async ctx => {
 			/^\+?(38)?[-\s()]?0\d{2}[-\s()]?\d{3}[-\s()]?\d{2}[-\s()]?\d{2}$/
 
 		if (!validPhonePattern.test(phone)) {
-			return ctx.reply(
+			return await ctx.reply(
 				'❌ Невірний формат телефонного номеру.\n\n' +
 					'Дозволені формати:\n' +
 					'• +0504122905\n' +
@@ -422,7 +422,7 @@ bot_events.on('text', async ctx => {
 		session.waitingPhone = false
 		session.waitingEmail = true
 		sessions.set(userId, session)
-		return ctx.reply('Дякую! Тепер введіть ваш email для підтвердження броні:')
+		return await ctx.reply('Дякую! Тепер введіть ваш email для підтвердження броні:')
 	}
 
 	// ждем email
@@ -431,7 +431,7 @@ bot_events.on('text', async ctx => {
 		const validEmailPattern = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/
 
 		if (!validEmailPattern.test(email)) {
-			return ctx.reply('❌ Невірний формат email. Спробуйте ще раз:')
+			return await ctx.reply('❌ Невірний формат email. Спробуйте ще раз:')
 		}
 
 		session.email = email
@@ -500,7 +500,7 @@ bot_events.on('text', async ctx => {
 		return
 	}
 
-	return ctx.reply(
+	return await ctx.reply(
 		'🤖 Вибачте, введений вами текст мені не зрозумілий.\n\n' +
 			'Для початку роботи натисніть на /book',
 	)
