@@ -1,6 +1,7 @@
 import { calendar } from '@/app/api/telegram-bot/route'
 import { DateTime } from 'luxon'
 import { TIMEZONE } from './vars'
+import { calendar_v3 } from 'googleapis'
 
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!
 
