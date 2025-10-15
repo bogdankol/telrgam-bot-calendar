@@ -7,20 +7,34 @@ const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!
 // --- Получение доступных дней ---
 export async function getAvailableDays(daysAhead = 30, minDays = 10) {
 	const now = DateTime.now().setZone(TIMEZONE)
-	const availableDays: DateTime[] = []
+	const candidateDays: DateTime[] = []
 
 	for (let i = 1; i <= daysAhead; i++) {
 		const day = now.plus({ days: i })
 		const weekday = day.weekday // 1 = Monday, 7 = Sunday
-		if (weekday === 6 || weekday === 7) continue // пропускаем субботу и воскресенье
+		if (weekday === 6 || weekday === 7) continue // пропускаем выходные
+		candidateDays.push(day)
+	}
 
-		const slots = await getAvailableSlotsForDay(day)
+	// Получаем все дни параллельно
+	const results = await Promise.all(
+		candidateDays.map(async (day) => {
+			const slots = await getAvailableSlotsForDay(day)
+			return { day, hasSlots: slots.length > 0 }
+		})
+	)
 
-		if (slots.length > 0 || availableDays.length < minDays) {
-			availableDays.push(day)
-		}
+	// Отбираем дни с доступными слотами
+	const availableDays = results
+		.filter((r) => r.hasSlots)
+		.map((r) => r.day)
+		.slice(0, minDays)
 
-		if (availableDays.length >= minDays) break
+	// Если доступных меньше, добавляем первые из списка (для minDays)
+	while (availableDays.length < minDays && availableDays.length < results.length) {
+		const next = results[availableDays.length]
+		if (next) availableDays.push(next.day)
+		else break
 	}
 
 	return availableDays
@@ -28,7 +42,6 @@ export async function getAvailableDays(daysAhead = 30, minDays = 10) {
 
 // --- Получение слотов ---
 export async function getAvailableSlotsForDay(day: DateTime) {
-  console.log('I am executed!!!!!!!!!!!!')
 	const slots: { start: DateTime; label: string }[] = []
 	const startHour = 11
 	const endHour = 19
@@ -36,39 +49,48 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 	const breakAfterMeeting = 0 // мин
 	const maxMeetingsPerDay = 8
 
+	const slotTimes: DateTime[] = []
 	let slotStart = day.set({
 		hour: startHour,
 		minute: 0,
 		second: 0,
 		millisecond: 0,
 	})
-	let slotCount = 0 // учитываем все слоты, чтобы не превысить лимит
 
-	while (slotCount < maxMeetingsPerDay) {
+	for (let i = 0; i < maxMeetingsPerDay; i++) {
 		const slotEnd = slotStart.plus({ minutes: meetingDuration })
+		if (slotStart.hour >= endHour) break
+		slotTimes.push(slotStart)
+		slotStart = slotEnd.plus({ minutes: breakAfterMeeting })
+	}
 
-		const res = await calendar.events.list({
-      // @ts-expect-error type error
-			calendarId: CALENDAR_ID,
-			timeMin: slotStart.toISO(),
-			timeMax: slotEnd.toISO(),
-			singleEvents: true,
-		})
+	// ⚡ Параллельные запросы для всех слотов
+	const slotResults = await Promise.all(
+		slotTimes.map(async (slotStart) => {
+			const slotEnd = slotStart.plus({ minutes: meetingDuration })
+			const res = await calendar.events.list({
+				calendarId: CALENDAR_ID,
+				timeMin: slotStart.toISO(),
+				timeMax: slotEnd.toISO(),
+				singleEvents: true,
+				orderBy: 'startTime',
+			} as calendar_v3.Params$Resource$Events$List)
 
-		// @ts-expect-error type error
-		const events = res.data.items || []
-
-		if (events.length === 0) {
-			slots.push({
+			const events = res.data.items || []
+			return {
 				start: slotStart,
-				label: slotStart.toFormat('HH:mm'),
+				free: events.length === 0,
+			}
+		})
+	)
+
+	for (const s of slotResults) {
+		if (s.free) {
+			slots.push({
+				start: s.start,
+				label: s.start.toFormat('HH:mm'),
 			})
 		}
-
-		slotCount++ // увеличиваем счетчик **всегда**, независимо от занятости слота
-		slotStart = slotEnd.plus({ minutes: breakAfterMeeting })
-
-		if (slotStart.hour >= endHour) break
 	}
 
 	return slots
@@ -92,8 +114,6 @@ export function handlePhone(ctx: any, sessions: any) {
 		ctx.reply('Дякую! тепер введіть email на який буде надіслано запрошення:')
 	}
 }
-
-
 
 // tell phone number check
 export function isValidPhone(phone: string) {
