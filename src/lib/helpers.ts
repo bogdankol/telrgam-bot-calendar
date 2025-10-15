@@ -28,6 +28,7 @@ export async function getAvailableDays(daysAhead = 30, minDays = 10) {
 
 // --- Получение слотов ---
 export async function getAvailableSlotsForDay(day: DateTime) {
+  console.log('I am executed!!!!!!!!!!!!')
 	const slots: { start: DateTime; label: string }[] = []
 	const startHour = 11
 	const endHour = 19
