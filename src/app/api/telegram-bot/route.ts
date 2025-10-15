@@ -57,11 +57,8 @@ export const sessions = new Map<
 
 // --- Команды бота ---
 bot_events.start(async ctx => {
-	console.log('before start', { sessions })
 	const userId = String(ctx.from!.id)
 	sessions.delete(userId)
-
-	console.log('after start', { sessions })
 
 	const allEnvIsPresent = await envCheck()
 	if (!allEnvIsPresent) {
@@ -71,7 +68,7 @@ bot_events.start(async ctx => {
 	}
 
 	ctx.reply(
-		`Доброго здоров'ячка! 👋 Натисніть на /book, для того, щоб забронювати зустріч.`,
+		`Доброго здоров'ячка! 👋 Натисніть на /book, для того, щоб забронювати зустріч. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.`,
     Markup.keyboard([['Отримати інформацію про майбутні мітинги']])
       .resize()
       .persistent()
@@ -87,10 +84,8 @@ bot_events.command('book', async ctx => {
 		return
 	}
 
-	console.log('before book', { sessions })
 	const userId = String(ctx.from.id)
 	sessions.delete(userId)
-	console.log('before after', { sessions })
 
 	await ctx.reply('🔄 Будь ласка зачекайте, йде завантаження доступних днів...')
 
@@ -120,15 +115,13 @@ bot_events.command('book', async ctx => {
 
 // --- Выбор дня ---
 bot_events.action(/day_(.+?)_(.+)/, async ctx => {
-	console.log('before day selection', { sessions })
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 	const [clickedSessionId, dayISO] = [ctx.match[1], ctx.match[2]]
-	console.log('after day selection', { session, sessions })
 
 	if (!session || session.sessionId !== clickedSessionId || session.completed) {
 		return ctx.reply(
-			'🤖 Поточне бронювання вже завершено або застаріло. Натисніть /book, щоб почати заново.',
+			'🤖 Поточне бронювання вже завершено або застаріло. Натисніть /book, щоб почати заново.  Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
 		)
 	}
 
@@ -161,7 +154,7 @@ bot_events.action(/slot_(.+?)_(\d+)/, async ctx => {
 
 	if (!session || session.sessionId !== clickedSessionId || session.completed) {
 		return ctx.reply(
-			'🤖 Поточне бронювання вже завершено або застаріло. Натисніть /book, щоб почати заново.',
+			'🤖 Поточне бронювання вже завершено або застаріло. Натисніть /book, щоб почати заново. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
 		)
 	}
 
@@ -190,10 +183,9 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 	const userId = String(ctx.from!.id)
 	const session = sessions.get(userId)
 
-	console.log({ session, sessions })
 	if (!session || session.completed) {
 		return ctx.reply(
-			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново.',
+			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
 		)
 	}
 
@@ -219,7 +211,7 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 	)
 })
 
-bot_events.hears('Отримати інформацію про майбутні мітінги', async ctx => {
+bot_events.action('Отримати інформацію про майбутні мітінги', async ctx => {
 	const userId = String(ctx.from.id)
 	await ctx.reply('Збираю інформацію про ваші мітинги...')
 
@@ -279,65 +271,65 @@ bot_events.hears('Отримати інформацію про майбутні 
 	}
 })
 
-// bot_events.command('get_meetings', async ctx => {
-// 	const userId = String(ctx.from.id)
-// 	await ctx.reply('Збираю інформацію про ваші мітинги...')
+bot_events.command('get_meetings', async ctx => {
+	const userId = String(ctx.from.id)
+	await ctx.reply('Збираю інформацію про ваші мітинги...')
 
-// 	try {
-// 		// Берём текущую дату и диапазон 2 недели вперёд
-// 		const now = DateTime.now().setZone(TIMEZONE)
-// 		const twoWeeksLater = now.plus({ weeks: 2 })
+	try {
+		// Берём текущую дату и диапазон 2 недели вперёд
+		const now = DateTime.now().setZone(TIMEZONE)
+		const twoWeeksLater = now.plus({ weeks: 2 })
 
-// 		// Получаем все события за период
-// 		const res = await calendar.events.list({
-// 			calendarId: CALENDAR_ID,
-// 			timeMin: now.toISO(),
-// 			timeMax: twoWeeksLater.toISO(),
-// 			singleEvents: true,
-// 			orderBy: 'startTime',
-// 		} as calendar_v3.Params$Resource$Events$List)
+		// Получаем все события за период
+		const res = await calendar.events.list({
+			calendarId: CALENDAR_ID,
+			timeMin: now.toISO(),
+			timeMax: twoWeeksLater.toISO(),
+			singleEvents: true,
+			orderBy: 'startTime',
+		} as calendar_v3.Params$Resource$Events$List)
 
-// 		const events = res?.data?.items || []
+		const events = res?.data?.items || []
 
-// 		console.log({ events })
+		console.log({ events })
 
-// 		// Фильтруем по clientId
-// 		const userEvents = events.filter(ev =>
-// 			ev.description?.includes(`clientId: ${userId}`),
-// 		)
+		// Фильтруем по clientId
+		const userEvents = events.filter(ev =>
+			ev.description?.includes(`clientId: ${userId}`),
+		)
 
-// 		if (userEvents.length === 0) {
-// 			return ctx.reply(
-// 				'❌ У вас немає запланованих зустрічей на наступні 2 тижні.',
-// 			)
-// 		}
+		if (userEvents.length === 0) {
+			return ctx.reply(
+				'❌ У вас немає запланованих зустрічей на наступні 2 тижні.',
+			)
+		}
 
-// 		// Форматируем список для отправки
-// 		const message = userEvents
-// 			.map(ev => {
-// 				const startISO = ev.start?.dateTime || ev.start?.date
-// 				const start = startISO
-// 					? DateTime.fromISO(startISO)
-// 							.setZone(TIMEZONE)
-// 							.toFormat('dd.MM.yyyy HH:mm')
-// 					: 'невідомо'
-// 				return `🗓 *${
-// 					ev.summary || 'Без назви'
-// 				}*\n📅 ${start}\nФормат зустрічі: ${
-// 					ev.description?.match(/Фoрмат зустрічі: (.*)/)?.[1] || 'невідомо'
-// 				}`
-// 			})
-// 			.join('\n\n')
+		// Форматируем список для отправки
+		const message = userEvents
+			.map(ev => {
+				const startISO = ev.start?.dateTime || ev.start?.date
+				const start = startISO
+					? DateTime.fromISO(startISO)
+							.setZone(TIMEZONE)
+							.toFormat('dd.MM.yyyy HH:mm')
+					: 'невідомо'
+				return `🗓 *${
+					ev.summary || 'Без назви'
+				}*\n📅 ${start}\nФормат зустрічі: ${
+					ev.description?.match(/Фoрмат зустрічі: (.*)/)?.[1] || 'невідомо'
+				}`
+			})
+			.join('\n\n')
 
-// 		ctx.reply(`Ось ваші мітинги на найближчі 2 тижні:\n\n${message}`)
-//     ctx.reply(`Для початку роботи натисніть /start. Для того, щоб повторно отримати дані про майбутні зустрічі натисніть /get_meetings`)
-// 	} catch (err) {
-// 		console.error('Помилка отримання подій:', err)
-// 		await ctx.reply(
-// 			'⚠️ Сталася помилка під час отримання мітингів. Спробуйте пізніше.',
-// 		)
-// 	}
-// })
+		ctx.reply(`Ось ваші мітинги на найближчі 2 тижні:\n\n${message}`)
+    ctx.reply(`Для початку роботи натисніть /start. Для того, щоб повторно отримати дані про майбутні зустрічі натисніть /get_meetings`)
+	} catch (err) {
+		console.error('Помилка отримання подій:', err)
+		await ctx.reply(
+			'⚠️ Сталася помилка під час отримання мітингів. Спробуйте пізніше.',
+		)
+	}
+})
 
 // --- Получение контакта ---
 bot_events.on('contact', ctx => handlePhone(ctx, sessions))
@@ -349,13 +341,13 @@ bot_events.on('text', async ctx => {
 
 	if (!session) {
 		return ctx.reply(
-			'🤖 Для початку натисніть /book, щоб розпочати бронювання зустрічі.',
+			'🤖 Для початку натисніть /book, щоб розпочати бронювання зустрічі. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
 		)
 	}
 
 	if (session.completed) {
 		return ctx.reply(
-			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново.',
+			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
 		)
 	}
 
@@ -514,7 +506,7 @@ bot_events.on('text', async ctx => {
 
 	return ctx.reply(
 		'🤖 Вибачте, введений вами текст мені не зрозумілий.\n\n' +
-			'Для початку натисніть на /book',
+			'Для початку роботи натисніть на /book',
 	)
 })
 
