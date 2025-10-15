@@ -87,7 +87,7 @@ bot_events.command('book', async ctx => {
 
 	try {
 		const days = await getAvailableDays(30)
-    const sessionId = uuidv4().split('-').join('')
+    const sessionId = uuidv4().split('-').join('').substring(0, 30)
 		sessions.set(userId, { sessionId })
 
 		const buttons = days.map(d => [
