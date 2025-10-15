@@ -317,8 +317,8 @@ bot_events.command('get_meetings', async ctx => {
 			})
 			.join('\n\n')
 
-		ctx.reply(`Ось ваші мітинги на найближчі 2 тижні:\n\n${message}`)
-    ctx.reply(`Для початку роботи натисніть /start. Для того, щоб повторно отримати дані про майбутні зустрічі натисніть /get_meetings`)
+		await ctx.reply(`Ось ваші мітинги на найближчі 2 тижні:\n\n${message}`)
+    await ctx.reply(`Для початку роботи натисніть /start. Для того, щоб повторно отримати дані про майбутні зустрічі натисніть /get_meetings`)
 	} catch (err) {
 		console.error('Помилка отримання подій:', err)
 		await ctx.reply(
