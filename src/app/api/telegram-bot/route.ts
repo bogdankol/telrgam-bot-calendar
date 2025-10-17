@@ -7,7 +7,7 @@ import {
 	envCheck,
 } from '@/utils/server-utils'
 // import { createNewInvoiceLink } from '@/actions/server-actions'
-import { TIMEZONE, SCOPES } from '@/lib/vars'
+import { TIMEZONE, SCOPES, OFFLINE_MEETING_MESSAGE, ONLINE_MEETING_MESSAGE } from '@/lib/vars'
 import {
 	getAvailableDays,
 	getAvailableSlotsForDay,
@@ -48,6 +48,7 @@ export const sessions = new Map<
 		reason?: string
 		waitingName?: boolean
 		meetingType?: string
+    meetingMessage?: string
 		waitingForReasonOfMeeting?: boolean
 		waitingForMeetingType?: boolean
 		waitingPhone?: boolean
@@ -190,16 +191,16 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 		)
 	}
 
-	const type = ctx.match[1] // offline или online
+	const type = ctx.match[1]
 
 	if (!type) {
 		await ctx.reply('Необхідно обрати один з двох запропонованих варіантів')
 	}
-	if (type === 'offline') {
-		session.meetingType = `Зустріч в офісі, за адресою: вулиця із дуже довгою назвою, місто із довгою назвою, підєїзд із номером 1233213, номер офису 1231233`
-	} else {
-		session.meetingType = `Онлайн зустріч. Посилання буде надіслано пізніше на вказаний вами email`
-	}
+	// if (type === 'offline') {
+	// 	session.meetingType = OFFLINE_MEETING_MESSAGE
+	// } else {
+		session.meetingType = type
+	// }
 
 	session.waitingPhone = true
 	sessions.set(userId, session)
@@ -226,12 +227,12 @@ bot_events.hears('Отримати інформацію про майбутні 
  await bot_events.handleUpdate({
 		update_id: Date.now(),
 		message: {
-			// message_id: Date.now(),
-			// date: Math.floor(Date.now() / 1000),
-			// chat: { id: ctx.chat.id, type: ctx.chat.type },
+			message_id: Date.now(),
+			date: Math.floor(Date.now() / 1000),
+			chat: { id: ctx.chat.id, type: ctx.chat.type },
 			from: ctx.from,
 			text: '/get_meetings',
-			// entities: [{ offset: 0, length: 13, type: 'bot_command' }],
+			entities: [{ offset: 0, length: 13, type: 'bot_command' }],
 		},
 	} as any)
 })
@@ -355,7 +356,7 @@ bot_events.on('text', async ctx => {
 		const event: calendar_v3.Schema$Event = {
 			summary: 'Мітинг із психологом Ольгою Енгельс',
 			description: `Заброньовано через телеграм-бота.\nДані клієнта: ${session.name}\nТелефон: ${session.phone}\nEmail: ${session.email}\n💰 
-        Фoрмат зустрічі: ${session.meetingType}\n Опис підстави для звернення: ${session.reason}\n\n\n clientId: ${userId} `,
+        Фoрмат зустрічі: ${session.meetingType === 'offline' ? OFFLINE_MEETING_MESSAGE : ONLINE_MEETING_MESSAGE}\n Опис підстави для звернення: ${session.reason}\n\n\n clientId: ${userId} `,
 			start: { dateTime: start.toISO(), timeZone: TIMEZONE },
 			end: { dateTime: end.toISO(), timeZone: TIMEZONE },
 			conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
@@ -375,11 +376,11 @@ bot_events.on('text', async ctx => {
 						? `🔗 Посилання на Google Meet: ${res.data.hangoutLink}\n`
 						: `ℹ️ Запрошення буде надіслано на ваш email.\n`) +
 					`📞 Телефон: ${session.phone}\n` +
-					`Формат зустрічі: ${session.meetingType}\n` +
+					`Формат зустрічі: ${session.meetingType === 'offline' ? OFFLINE_MEETING_MESSAGE : ONLINE_MEETING_MESSAGE}\n` +
 					`👤 Ім'я: ${session.name}\n` +
 					`📧 Email: ${session.email}\n\n` +
 					` Опис підстави для звернення: ${session.reason}\n`,
-				// + { parse_mode: 'Markdown' },
+				{ parse_mode: 'Markdown' },
 			)
 
 			session.completed = true
@@ -390,7 +391,7 @@ bot_events.on('text', async ctx => {
 				`📢 *НОВЕ БРОНЮВАННЯ*\n\n` +
 					`📅 Дата та час: ${start.toFormat('dd.MM.yyyy HH:mm')}\n` +
 					`📞 Телефон: ${session.phone}\n` +
-					`Формат зустрічі: ${session.meetingType}\n` +
+					`Формат зустрічі: ${session.meetingType === 'offline' ? OFFLINE_MEETING_MESSAGE : ONLINE_MEETING_MESSAGE.split('.')[0]}\n` +
 					`👤 Ім'я: ${session.name}\n` +
 					`📧 Email: ${session.email}\n\n` +
 					` Опис підстави для звернення: ${session.reason}\n`,
