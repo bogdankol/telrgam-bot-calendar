@@ -1,7 +1,5 @@
 'use server'
 
-import { Telegraf } from 'telegraf'
-
 export async function envCheck() {
 	// const monoKeyAvailable = !!process.env.MONO_API_TOKEN_TEST
 	// const monoBasicUrlAvailable = !!process.env.MONO_API_BASIC_URL
@@ -14,6 +12,10 @@ export async function envCheck() {
 	const db = !!process.env.DATABASE_URL
 	const adminId = !!process.env.BOT_ADMIN_ID
 	const telegramNotificationBotToken =  !!process.env.TELEGRAM_NOTIFICATION_BOT_TOKEN
+
+  console.log({
+    myCalendarId,
+  })
 
 	if (
 		// !monoKeyAvailable ||
@@ -39,7 +41,6 @@ export async function checkNotificationBotAvailability() {
 	const TELEGRAM_NOTIFICATION_BOT_TOKEN =
 		process.env.TELEGRAM_NOTIFICATION_BOT_TOKEN!
 	const ADMIN_ID = process.env.BOT_ADMIN_ID!
-	const notification_bot = new Telegraf(TELEGRAM_NOTIFICATION_BOT_TOKEN)
 	const apiBase = `https://api.telegram.org/bot${TELEGRAM_NOTIFICATION_BOT_TOKEN}`
 
 	try {
