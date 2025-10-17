@@ -6,7 +6,7 @@ export async function envCheck() {
 	// const monoKeyAvailable = !!process.env.MONO_API_TOKEN_TEST
 	// const monoBasicUrlAvailable = !!process.env.MONO_API_BASIC_URL
 	const telegramEventsBotToken = !!process.env.TELEGRAM_EVENTS_BOT_TOKEN
-	const calendarId = !!process.env.GOOGLE_CALENDAR_ID
+	const myCalendarId = !!process.env.GOOGLE_CALENDAR_MY_ID
 	const googleServiceClientMail = !!process.env.GOOGLE_CLIENT_EMAIL
 	const googlePrivateKey = !!process.env.GOOGLE_PRIVATE_KEY
 	const basicUrl = !!process.env.BASIC_URL
@@ -20,7 +20,7 @@ export async function envCheck() {
 		// !monoKeyAvailable ||
 		// !monoBasicUrlAvailable ||
 		!telegramEventsBotToken ||
-		!calendarId ||
+		!myCalendarId ||
 		!googlePrivateKey ||
 		!googleServiceClientMail ||
 		!basicUrl ||

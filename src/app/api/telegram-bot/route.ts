@@ -17,7 +17,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { getUpcomingMeetings } from '@/actions/server-actions'
 
 // --- Google Calendar настройка ---
-const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!
+const GOOGLE_CALENDAR_MY_ID = process.env.GOOGLE_CALENDAR_MY_ID!
 const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL!
 const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, '\n')
 
@@ -34,7 +34,7 @@ const auth = new google.auth.JWT({
 	scopes: SCOPES,
 })
 
-export const calendar = google.calendar({ version: 'v3', auth })
+export const myCalendar = google.calendar({ version: 'v3', auth })
 
 // Простая "сессия" в памяти
 export const sessions = new Map<
@@ -218,7 +218,7 @@ bot_events.command('get_meetings', async ctx => {
 	await ctx.reply('Збираю інформацію про ваші мітинги...')
 
 	await getUpcomingMeetings(
-    userId, TIMEZONE, calendar, CALENDAR_ID, ctx
+    userId, TIMEZONE, myCalendar, GOOGLE_CALENDAR_MY_ID, ctx
   )
 })
 
@@ -362,8 +362,8 @@ bot_events.on('text', async ctx => {
 		}
 
 		try {
-			const res = await calendar.events.insert({
-				calendarId: CALENDAR_ID,
+			const res = await myCalendar.events.insert({
+				calendarId: GOOGLE_CALENDAR_MY_ID,
 				requestBody: event,
 				conferenceDataVersion: 1,
 			})

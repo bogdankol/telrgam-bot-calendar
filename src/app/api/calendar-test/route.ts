@@ -4,7 +4,7 @@ import { google } from "googleapis"
 const SCOPES = ["https://www.googleapis.com/auth/calendar"]
 const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL!
 const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, "\n")
-const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!
+const GOOGLE_CALENDAR_MY_ID = process.env.GOOGLE_CALENDAR_MY_ID!
 
 const auth = new google.auth.JWT({
   email: GOOGLE_CLIENT_EMAIL,
@@ -16,7 +16,7 @@ const calendar = google.calendar({ version: "v3", auth })
 export async function GET() {
   try {
     const res = await calendar.events.list({
-      calendarId: CALENDAR_ID,
+      calendarId: GOOGLE_CALENDAR_MY_ID,
       maxResults: 5,
       orderBy: "startTime",
       singleEvents: true,

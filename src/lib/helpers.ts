@@ -1,9 +1,9 @@
-import { calendar } from '@/app/api/telegram-bot/route'
+import { myCalendar } from '@/app/api/telegram-bot/route'
 import { DateTime } from 'luxon'
 import { TIMEZONE } from './vars'
 import { calendar_v3 } from 'googleapis'
 
-const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!
+const GOOGLE_CALENDAR_MY_ID = process.env.GOOGLE_CALENDAR_MY_ID!
 
 // --- Получение доступных дней ---
 export async function getAvailableDays(daysAhead = 30, minDays = 10) {
@@ -73,7 +73,7 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 		slotTimes.map(async slotStart => {
 			const slotEnd = slotStart.plus({ minutes: meetingDuration })
 			const res = await calendar.events.list({
-				calendarId: CALENDAR_ID,
+				calendarId: GOOGLE_CALENDAR_MY_ID,
 				timeMin: slotStart.toISO(),
 				timeMax: slotEnd.toISO(),
 				singleEvents: true,
