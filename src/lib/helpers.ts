@@ -19,20 +19,23 @@ export async function getAvailableDays(daysAhead = 30, minDays = 10) {
 
 	// Получаем все дни параллельно
 	const results = await Promise.all(
-		candidateDays.map(async (day) => {
+		candidateDays.map(async day => {
 			const slots = await getAvailableSlotsForDay(day)
 			return { day, hasSlots: slots.length > 0 }
-		})
+		}),
 	)
 
 	// Отбираем дни с доступными слотами
 	const availableDays = results
-		.filter((r) => r.hasSlots)
-		.map((r) => r.day)
+		.filter(r => r.hasSlots)
+		.map(r => r.day)
 		.slice(0, minDays)
 
 	// Если доступных меньше, добавляем первые из списка (для minDays)
-	while (availableDays.length < minDays && availableDays.length < results.length) {
+	while (
+		availableDays.length < minDays &&
+		availableDays.length < results.length
+	) {
 		const next = results[availableDays.length]
 		if (next) availableDays.push(next.day)
 		else break
@@ -67,7 +70,7 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 
 	// ⚡ Параллельные запросы для всех слотов
 	const slotResults = await Promise.all(
-		slotTimes.map(async (slotStart) => {
+		slotTimes.map(async slotStart => {
 			const slotEnd = slotStart.plus({ minutes: meetingDuration })
 			const res = await calendar.events.list({
 				calendarId: CALENDAR_ID,
@@ -82,7 +85,7 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 				start: slotStart,
 				free: events.length === 0,
 			}
-		})
+		}),
 	)
 
 	for (const s of slotResults) {
@@ -100,30 +103,49 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 // --- функция обработки контакта ---
 export function handlePhone(ctx: any, sessions: any) {
 	const userId = String(ctx.from!.id)
-  // console.log({ctx, userId, from: ctx?.from, ctxString: JSON.parse(JSON.stringify(ctx)).update.message})
+	// console.log({ctx, userId, from: ctx?.from, ctxString: JSON.parse(JSON.stringify(ctx)).update.message})
 	const session = sessions.get(userId)
 	if (!session || !session.startTime) {
 		return ctx.reply('Для початку виберіть день та час зустрічі через /book.')
 	}
 
 	const contact = ctx.message.contact
-	if (contact?.phone_number) {
-		session.phone = contact.phone_number
-    session.waitingPhone = false
-		session.waitingEmail = true
-		sessions.set(userId, session)
-		ctx.reply('Дякую! тепер введіть email на який буде надіслано запрошення:')
+
+	if (!contact) {
+		return ctx.reply(
+			'⚠️ Ви не поділилися контактом. Будь ласка, натисніть кнопку або введіть номер вручну.',
+		)
 	}
+
+	if (!contact.phone_number) {
+		session.waitingPhone = true
+		sessions.set(userId, session)
+		return ctx.reply(
+			'⚠️ У вашому Telegram-контакті відсутній номер телефону.\n\n' +
+				'Будь ласка, введіть його вручну в одному з форматів:\n' +
+				'• +0504122905\n' +
+				'• +050-412-29-05\n' +
+				'• +38-050-412-29-05\n' +
+				'• +380504122905\n' +
+				'• +38 050 412 29 05',
+		)
+	}
+
+	session.phone = contact.phone_number
+	session.waitingPhone = false
+	session.waitingEmail = true
+	sessions.set(userId, session)
+	ctx.reply('Дякую! тепер введіть email на який буде надіслано запрошення:')
 }
 
 // tell phone number check
 export function isValidPhone(phone: string) {
-  // убираем пробелы и дефисы для проверки
-  const cleaned = phone.replace(/[\s-]/g, '');
+	// убираем пробелы и дефисы для проверки
+	const cleaned = phone.replace(/[\s-]/g, '')
 
-  // проверяем на цифры и максимум один +
-  if (/[^+\d]/.test(cleaned)) return false; // есть буквы или другие символы
-  if ((cleaned.match(/\+/g) || []).length > 1) return false; // больше одного +
-  if (!/^\+?\d{9,15}$/.test(cleaned)) return false; // длина номера
-  return true
+	// проверяем на цифры и максимум один +
+	if (/[^+\d]/.test(cleaned)) return false // есть буквы или другие символы
+	if ((cleaned.match(/\+/g) || []).length > 1) return false // больше одного +
+	if (!/^\+?\d{9,15}$/.test(cleaned)) return false // длина номера
+	return true
 }
