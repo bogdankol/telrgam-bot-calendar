@@ -237,7 +237,7 @@ bot_events.hears('Отримати інформацію про майбутні 
     callback_query: {
       id: `manual_${Date.now()}`,
       from: ctx.from,
-      // message: ctx.message,
+      message: ctx.message,
       data: 'get_meetings',
     },
   } as any)
