@@ -4,6 +4,7 @@ import { TIMEZONE } from './vars'
 import { calendar_v3 } from 'googleapis'
 
 const GOOGLE_CALENDAR_MY_ID = process.env.GOOGLE_CALENDAR_MY_ID!
+const GOOGLE_CALENDAR_WORK_ID = process.env.GOOGLE_CALENDAR_WORK_ID!
 
 // --- Получение доступных дней ---
 export async function getAvailableDays(daysAhead = 30, minDays = 10) {
@@ -72,19 +73,29 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 	const slotResults = await Promise.all(
 		slotTimes.map(async slotStart => {
 			const slotEnd = slotStart.plus({ minutes: meetingDuration })
-			const res = await myCalendar.events.list({
-				calendarId: GOOGLE_CALENDAR_MY_ID,
-				timeMin: slotStart.toISO(),
-				timeMax: slotEnd.toISO(),
-				singleEvents: true,
-				orderBy: 'startTime',
-			} as calendar_v3.Params$Resource$Events$List)
+			const [primaryRes, workRes] = await Promise.all([
+				myCalendar.events.list({
+					calendarId: GOOGLE_CALENDAR_MY_ID,
+					timeMin: slotStart.toISO(),
+					timeMax: slotEnd.toISO(),
+					singleEvents: true,
+					orderBy: 'startTime',
+				} as calendar_v3.Params$Resource$Events$List),
 
-			const events = res.data.items || []
-			return {
-				start: slotStart,
-				free: events.length === 0,
-			}
+				myCalendar.events.list({
+					calendarId: GOOGLE_CALENDAR_WORK_ID,
+					timeMin: slotStart.toISO(),
+					timeMax: slotEnd.toISO(),
+					singleEvents: true,
+					orderBy: 'startTime',
+				} as calendar_v3.Params$Resource$Events$List),
+			])
+
+			const primaryEvents = primaryRes.data.items || []
+			const workEvents = workRes.data.items || []
+			const isFree = primaryEvents.length === 0 && workEvents.length === 0
+
+			return { start: slotStart, free: isFree }
 		}),
 	)
 

@@ -12,6 +12,7 @@ export async function envCheck() {
 	const db = !!process.env.DATABASE_URL
 	const adminId = !!process.env.BOT_ADMIN_ID
 	const telegramNotificationBotToken =  !!process.env.TELEGRAM_NOTIFICATION_BOT_TOKEN
+  const googleCalendarWorkId = !!process.env.GOOGLE_CALENDAR_WORK_ID
 
   console.log({
     myCalendarId,
@@ -28,7 +29,8 @@ export async function envCheck() {
 		// !fee ||
 		!db ||
 		!adminId ||
-		!telegramNotificationBotToken
+		!telegramNotificationBotToken ||
+    !googleCalendarWorkId
 	) {
 		console.error('One of variables is missing')
 		return
