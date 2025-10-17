@@ -311,7 +311,7 @@ bot_events.command('get_meetings', async ctx => {
 							.setZone(TIMEZONE)
 							.toFormat('dd.MM.yyyy HH:mm')
 					: 'невідомо'
-				return `*\n📅 ${start}\nФормат зустрічі: ${
+				return `📅 ${start}\n Формат зустрічі: ${
 					ev.description?.match(/Фoрмат зустрічі: (.*)/)?.[1] || 'необхідне уточнення'
 				}`
 			})
