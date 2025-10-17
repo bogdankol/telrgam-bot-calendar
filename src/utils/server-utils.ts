@@ -13,8 +13,7 @@ export async function envCheck() {
 	// const fee = !!process.env.FEE_FOR_SERVICE_IN_GRN
 	const db = !!process.env.DATABASE_URL
 	const adminId = !!process.env.BOT_ADMIN_ID
-	const telegramNotificationBotToken =
-		!!process.env.TELEGRAM_NOTIFICATION_BOT_TOKEN
+	const telegramNotificationBotToken =  !!process.env.TELEGRAM_NOTIFICATION_BOT_TOKEN
 
 	if (
 		// !monoKeyAvailable ||

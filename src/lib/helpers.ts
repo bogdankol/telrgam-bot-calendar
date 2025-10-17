@@ -72,7 +72,7 @@ export async function getAvailableSlotsForDay(day: DateTime) {
 	const slotResults = await Promise.all(
 		slotTimes.map(async slotStart => {
 			const slotEnd = slotStart.plus({ minutes: meetingDuration })
-			const res = await calendar.events.list({
+			const res = await myCalendar.events.list({
 				calendarId: GOOGLE_CALENDAR_MY_ID,
 				timeMin: slotStart.toISO(),
 				timeMax: slotEnd.toISO(),
