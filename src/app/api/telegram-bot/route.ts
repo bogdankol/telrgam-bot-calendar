@@ -235,10 +235,10 @@ bot_events.hears('Отримати інформацію про майбутні 
   await bot_events.handleUpdate({
     update_id: Date.now(),
     callback_query: {
-      id: `manual_${Date.now()}`,
+      // id: `manual_${Date.now()}`,
       from: ctx.from,
-      message: ctx.message,
-      data: 'btn_get_meetings',
+      // message: ctx.message,
+      data: 'get_meetings',
     },
   } as any)
 })
