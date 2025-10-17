@@ -211,63 +211,63 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 	)
 })
 
-// bot_events.action('Отримати інформацію про майбутні мітінги', async ctx => {
-// 	const userId = String(ctx.from.id)
-// 	await ctx.reply('Збираю інформацію про ваші мітинги...')
+bot_events.action('Отримати інформацію про майбутні мітінги', async ctx => {
+	const userId = String(ctx.from.id)
+	await ctx.reply('Збираю інформацію про ваші мітинги...')
 
-// 	try {
-// 		// Берём текущую дату и диапазон 2 недели вперёд
-// 		const now = DateTime.now().setZone(TIMEZONE)
-// 		const twoWeeksLater = now.plus({ weeks: 2 })
+	try {
+		// Берём текущую дату и диапазон 2 недели вперёд
+		const now = DateTime.now().setZone(TIMEZONE)
+		const twoWeeksLater = now.plus({ weeks: 2 })
 
-// 		// Получаем все события за период
-// 		const res = await calendar.events.list({
-// 			calendarId: CALENDAR_ID,
-// 			timeMin: now.toISO(),
-// 			timeMax: twoWeeksLater.toISO(),
-// 			singleEvents: true,
-// 			orderBy: 'startTime',
-// 		} as calendar_v3.Params$Resource$Events$List)
+		// Получаем все события за период
+		const res = await calendar.events.list({
+			calendarId: CALENDAR_ID,
+			timeMin: now.toISO(),
+			timeMax: twoWeeksLater.toISO(),
+			singleEvents: true,
+			orderBy: 'startTime',
+		} as calendar_v3.Params$Resource$Events$List)
 
-// 		const events = res?.data?.items || []
+		const events = res?.data?.items || []
 
-// 		console.log({ events })
+		console.log({ events })
 
-// 		// Фильтруем по clientId
-// 		const userEvents = events.filter(ev =>
-// 			ev.description?.includes(`clientId: ${userId}`),
-// 		)
+		// Фильтруем по clientId
+		const userEvents = events.filter(ev =>
+			ev.description?.includes(`clientId: ${userId}`),
+		)
 
-// 		if (userEvents.length === 0) {
-// 			return await ctx.reply(
-// 				'❌ У вас немає запланованих зустрічей на наступні 2 тижні.',
-// 			)
-// 		}
+		if (userEvents.length === 0) {
+			return await ctx.reply(
+				'❌ У вас немає запланованих зустрічей на наступні 2 тижні.',
+			)
+		}
 
-// 		// Форматируем список для отправки
-// 		const message = userEvents
-// 			.map(ev => {
-// 				const startISO = ev.start?.dateTime || ev.start?.date
-// 				const start = startISO
-// 					? DateTime.fromISO(startISO)
-// 							.setZone(TIMEZONE)
-// 							.toFormat('dd.MM.yyyy HH:mm')
-// 					: 'невідомо'
-// 				return `*\n📅 ${start}\n Формат зустрічі: ${
-// 					ev.description?.match(/Фoрмат зустрічі: (.*)/)?.[1] || 'невідомо'
-// 				}`
-// 			})
-// 			.join('\n\n')
+		// Форматируем список для отправки
+		const message = userEvents
+			.map(ev => {
+				const startISO = ev.start?.dateTime || ev.start?.date
+				const start = startISO
+					? DateTime.fromISO(startISO)
+							.setZone(TIMEZONE)
+							.toFormat('dd.MM.yyyy HH:mm')
+					: 'невідомо'
+				return `📅 ${start}\n Формат зустрічі: ${
+					ev.description?.match(/Фoрмат зустрічі: (.*)/)?.[1] || 'необхідне уточнення'
+				}`
+			})
+			.join('\n\n')
 
-// 		await ctx.reply(`Ось ваші мітинги на найближчі 2 тижні:\n\n${message}`)
-//     await ctx.reply(`Для початку роботи натисніть /start. Для того, щоб повторно отримати дані про майбутні зустрічі натисніть /get_meetings`)
-// 	} catch (err) {
-// 		console.error('Помилка отримання подій:', err)
-// 		await ctx.reply(
-// 			'⚠️ Сталася помилка під час отримання мітингів. Спробуйте пізніше.',
-// 		)
-// 	}
-// })
+		await ctx.reply(`Ось ваші мітинги на найближчі 2 тижні:\n\n${message}`)
+    await ctx.reply(`Для початку роботи натисніть /start. Для того, щоб повторно отримати дані про майбутні зустрічі натисніть /get_meetings`)
+	} catch (err) {
+		console.error('Помилка отримання подій:', err)
+		await ctx.reply(
+			'⚠️ Сталася помилка під час отримання мітингів. Спробуйте пізніше.',
+		)
+	}
+})
 
 bot_events.command('get_meetings', async ctx => {
 	const userId = String(ctx.from.id)
