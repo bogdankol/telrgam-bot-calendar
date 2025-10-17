@@ -355,8 +355,7 @@ bot_events.on('text', async ctx => {
 
 		const event: calendar_v3.Schema$Event = {
 			summary: 'Мітинг із психологом Ольгою Енгельс',
-			description: `Заброньовано через телеграм-бота.\nДані клієнта: ${session.name}\nТелефон: ${session.phone}\nEmail: ${session.email}\n💰 
-        Фoрмат зустрічі: ${session.meetingType === 'offline' ? OFFLINE_MEETING_MESSAGE : ONLINE_MEETING_MESSAGE.split('.')[0]}\n Опис підстави для звернення: ${session.reason}\n\n\n clientId: ${userId} `,
+			description: `Заброньовано через телеграм-бота.\n Дані клієнта: ${session.name}\nТелефон: ${session.phone}\n Email: ${session.email}\n Фoрмат зустрічі: ${session.meetingType === 'offline' ? OFFLINE_MEETING_MESSAGE : ONLINE_MEETING_MESSAGE.split('.')[0]}\n Опис підстави для звернення: ${session.reason}\n\n\n clientId: ${userId} `,
 			start: { dateTime: start.toISO(), timeZone: TIMEZONE },
 			end: { dateTime: end.toISO(), timeZone: TIMEZONE },
 			conferenceData: { createRequest: { requestId: `tg-${Date.now()}` } },
