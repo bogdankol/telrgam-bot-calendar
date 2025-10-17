@@ -226,12 +226,12 @@ bot_events.hears('Отримати інформацію про майбутні 
  await bot_events.handleUpdate({
 		update_id: Date.now(),
 		message: {
-			// message_id: Date.now(),
-			// date: Math.floor(Date.now() / 1000),
-			// chat: { id: ctx.chat.id, type: ctx.chat.type },
+			message_id: Date.now(),
+			date: Math.floor(Date.now() / 1000),
+			chat: { id: ctx.chat.id, type: ctx.chat.type },
 			from: ctx.from,
 			text: '/get_meetings',
-			// entities: [{ offset: 0, length: 13, type: 'bot_command' }],
+			entities: [{ offset: 0, length: 13, type: 'bot_command' }],
 		},
 	} as any)
 })
