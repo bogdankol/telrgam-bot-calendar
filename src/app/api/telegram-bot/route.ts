@@ -212,15 +212,6 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 	)
 })
 
-bot_events.action('btn_get_meetings', async ctx => {
-	const userId = String(ctx.from.id)
-	await ctx.reply('Збираю інформацію про ваші мітинги...')
-
-	await getUpcomingMeetings(
-    userId, TIMEZONE, calendar, CALENDAR_ID, ctx
-  )
-})
-
 bot_events.command('get_meetings', async ctx => {
 	const userId = String(ctx.from.id)
 	await ctx.reply('Збираю інформацію про ваші мітинги...')
@@ -232,15 +223,17 @@ bot_events.command('get_meetings', async ctx => {
 
 bot_events.hears('Отримати інформацію про майбутні мітинги', async ctx => {
   // Просто перенаправляем в action, который уже всё делает
-  await bot_events.handleUpdate({
-    update_id: Date.now(),
-    callback_query: {
-      id: `manual_${Date.now()}`,
-      from: ctx.from,
-      message: ctx.message,
-      data: 'get_meetings',
-    },
-  } as any)
+ await bot_events.handleUpdate({
+		update_id: Date.now(),
+		message: {
+			// message_id: Date.now(),
+			// date: Math.floor(Date.now() / 1000),
+			// chat: { id: ctx.chat.id, type: ctx.chat.type },
+			from: ctx.from,
+			text: '/get_meetings',
+			// entities: [{ offset: 0, length: 13, type: 'bot_command' }],
+		},
+	} as any)
 })
 
 // --- Получение контакта ---
