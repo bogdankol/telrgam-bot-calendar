@@ -18,6 +18,7 @@ import { getUpcomingMeetings } from '@/actions/server-actions'
 
 // --- Google Calendar настройка ---
 const GOOGLE_CALENDAR_MY_ID = process.env.GOOGLE_CALENDAR_MY_ID!
+const GOOGLE_CALENDAR_WORK_ID = process.env.GOOGLE_CALENDAR_WORK_ID!
 const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL!
 const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, '\n')
 
@@ -94,7 +95,7 @@ bot_events.command('book', async ctx => {
 	await ctx.reply('🔄 Будь ласка зачекайте, йде завантаження доступних днів...', { parse_mode: 'HTML' },)
 
 	try {
-		const days = await getAvailableDays(30)
+		const days = await getAvailableDays(30, 10, myCalendar, GOOGLE_CALENDAR_MY_ID, GOOGLE_CALENDAR_WORK_ID)
 		const sessionId = uuidv4().split('-').join('').substring(0, 30)
 		sessions.set(userId, { sessionId })
 
@@ -132,7 +133,7 @@ bot_events.action(/day_(.+?)_(.+)/, async ctx => {
 	}
 
 	const day = DateTime.fromISO(dayISO).setZone(TIMEZONE)
-	const slots = await getAvailableSlotsForDay(day)
+	const slots = await getAvailableSlotsForDay(day, myCalendar, GOOGLE_CALENDAR_MY_ID, GOOGLE_CALENDAR_WORK_ID)
 
 	if (slots.length === 0) return await ctx.reply('Немає доступних часів на цей день.', { parse_mode: 'HTML' },)
 
@@ -169,7 +170,7 @@ bot_events.action(/slot_(.+?)_(\d+)/, async ctx => {
 	const startTime = DateTime.fromMillis(timestamp).setZone(TIMEZONE)
 
 	const day = startTime.startOf('day')
-	const slots = await getAvailableSlotsForDay(day)
+	const slots = await getAvailableSlotsForDay(day, myCalendar, GOOGLE_CALENDAR_MY_ID, GOOGLE_CALENDAR_WORK_ID)
 	const slotTaken = !slots.some(s => s.start.toMillis() === timestamp)
 	if (slotTaken) {
 		return await ctx.reply(

@@ -1,4 +1,3 @@
-import { myCalendar } from '@/app/api/telegram-bot/route'
 import { DateTime } from 'luxon'
 import { TIMEZONE } from './vars'
 import { calendar_v3 } from 'googleapis'
@@ -7,7 +6,13 @@ const GOOGLE_CALENDAR_MY_ID = process.env.GOOGLE_CALENDAR_MY_ID!
 const GOOGLE_CALENDAR_WORK_ID = process.env.GOOGLE_CALENDAR_WORK_ID!
 
 // --- Получение доступных дней ---
-export async function getAvailableDays(daysAhead = 30, minDays = 10) {
+export async function getAvailableDays(
+	daysAhead = 30,
+	minDays = 10,
+	myCalendar: calendar_v3.Calendar,
+	myCalendarId: string,
+	workCalendarId: string,
+) {
 	const now = DateTime.now().setZone(TIMEZONE)
 	const candidateDays: DateTime[] = []
 
@@ -21,7 +26,7 @@ export async function getAvailableDays(daysAhead = 30, minDays = 10) {
 	// Получаем все дни параллельно
 	const results = await Promise.all(
 		candidateDays.map(async day => {
-			const slots = await getAvailableSlotsForDay(day)
+			const slots = await getAvailableSlotsForDay(day, myCalendar, myCalendarId, workCalendarId)
 			return { day, hasSlots: slots.length > 0 }
 		}),
 	)
@@ -46,69 +51,65 @@ export async function getAvailableDays(daysAhead = 30, minDays = 10) {
 }
 
 // --- Получение слотов ---
-export async function getAvailableSlotsForDay(day: DateTime) {
-	const slots: { start: DateTime; label: string }[] = []
+export async function getAvailableSlotsForDay(
+	day: DateTime,
+	myCalendar: calendar_v3.Calendar,
+	myCalendarId: string,
+	workCalendarId: string,
+) {
 	const startHour = 11
 	const endHour = 19
 	const meetingDuration = 60 // мин
 	const breakAfterMeeting = 0 // мин
 	const maxMeetingsPerDay = 8
 
-	const slotTimes: DateTime[] = []
 	let slotStart = day.set({
 		hour: startHour,
 		minute: 0,
 		second: 0,
 		millisecond: 0,
 	})
+	const timeRanges: { start: string; end: string }[] = []
 
 	for (let i = 0; i < maxMeetingsPerDay; i++) {
 		const slotEnd = slotStart.plus({ minutes: meetingDuration })
-		if (slotStart.hour >= endHour) break
-		slotTimes.push(slotStart)
+		if (slotEnd.hour > endHour) break
+		timeRanges.push({ start: slotStart.toISO()!, end: slotEnd.toISO()! })
 		slotStart = slotEnd.plus({ minutes: breakAfterMeeting })
 	}
 
-	// ⚡ Параллельные запросы для всех слотов
-	const slotResults = await Promise.all(
-		slotTimes.map(async slotStart => {
-			const slotEnd = slotStart.plus({ minutes: meetingDuration })
-			const [primaryRes, workRes] = await Promise.all([
-				myCalendar.events.list({
-					calendarId: GOOGLE_CALENDAR_MY_ID,
-					timeMin: slotStart.toISO(),
-					timeMax: slotEnd.toISO(),
-					singleEvents: true,
-					orderBy: 'startTime',
-				} as calendar_v3.Params$Resource$Events$List),
+	// 📡 Один общий запрос к FreeBusy API для ОБОИХ календарей
+	const res = await myCalendar.freebusy.query({
+		requestBody: {
+			timeMin: timeRanges[0].start,
+			timeMax: timeRanges[timeRanges.length - 1].end,
+			timeZone: TIMEZONE,
+			items: [{ id: myCalendarId }, { id: workCalendarId }],
+		},
+	})
 
-				myCalendar.events.list({
-					calendarId: GOOGLE_CALENDAR_WORK_ID,
-					timeMin: slotStart.toISO(),
-					timeMax: slotEnd.toISO(),
-					singleEvents: true,
-					orderBy: 'startTime',
-				} as calendar_v3.Params$Resource$Events$List),
-			])
+	// 🧩 Объединяем занятые интервалы из обоих календарей
+	const busyPrimary = res.data.calendars?.[myCalendarId]?.busy || []
+	const busySecondary = res.data.calendars?.[workCalendarId]?.busy || []
+	const allBusy = [...busyPrimary, ...busySecondary]
 
-			const primaryEvents = primaryRes.data.items || []
-			const workEvents = workRes.data.items || []
-			const isFree = primaryEvents.length === 0 && workEvents.length === 0
+	// 📆 Фильтруем только свободные интервалы
+	const availableSlots = timeRanges
+		.map(range => {
+			const start = DateTime.fromISO(range.start)
+			const end = DateTime.fromISO(range.end)
 
-			return { start: slotStart, free: isFree }
-		}),
-	)
+			const overlaps = allBusy.some(
+				busy =>
+					DateTime.fromISO(busy.start!) < end &&
+					DateTime.fromISO(busy.end!) > start,
+			)
 
-	for (const s of slotResults) {
-		if (s.free) {
-			slots.push({
-				start: s.start,
-				label: s.start.toFormat('HH:mm'),
-			})
-		}
-	}
+			return !overlaps ? { start, label: start.toFormat('HH:mm') } : null
+		})
+		.filter(Boolean)
 
-	return slots
+	return availableSlots as { start: DateTime; label: string }[]
 }
 
 // --- функция обработки контакта ---
