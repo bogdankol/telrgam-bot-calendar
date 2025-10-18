@@ -66,6 +66,7 @@ bot_events.start(async ctx => {
 	if (!allEnvIsPresent) {
 		await ctx.reply(
 			`Доброго здоров'ячка! Наразі цей бот не працює, але не хвилюйтесь, через деякий час він обіцяє запрацювати.`,
+      { parse_mode: 'Markdown' },
 		)
 	}
 
@@ -82,6 +83,7 @@ bot_events.command('book', async ctx => {
 	if (!notificationBotWorks) {
 		await ctx.reply(
 			'Вибачте, але сталася помилка. Ми вже працюємо над цим. Будь ласка, повторіть спробу пізніше.',
+      { parse_mode: 'Markdown' },
 		)
 		return
 	}
@@ -89,7 +91,7 @@ bot_events.command('book', async ctx => {
 	const userId = String(ctx.from.id)
 	sessions.delete(userId)
 
-	await ctx.reply('🔄 Будь ласка зачекайте, йде завантаження доступних днів...')
+	await ctx.reply('🔄 Будь ласка зачекайте, йде завантаження доступних днів...', { parse_mode: 'Markdown' },)
 
 	try {
 		const days = await getAvailableDays(30)
@@ -111,6 +113,7 @@ bot_events.command('book', async ctx => {
 		console.error('Error during days obtaining:', { err })
 		await ctx.reply(
 			'⚠️ Не вдалося завантажити доступні дні. Будь ласка, спробуйте пізніше.',
+      { parse_mode: 'Markdown' },
 		)
 	}
 })
@@ -124,13 +127,14 @@ bot_events.action(/day_(.+?)_(.+)/, async ctx => {
 	if (!session || session.sessionId !== clickedSessionId || session.completed) {
 		return await ctx.reply(
 			'🤖 Поточне бронювання вже завершено або застаріло. Натисніть /book, щоб почати заново.  Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
+      { parse_mode: 'Markdown' },
 		)
 	}
 
 	const day = DateTime.fromISO(dayISO).setZone(TIMEZONE)
 	const slots = await getAvailableSlotsForDay(day)
 
-	if (slots.length === 0) return await ctx.reply('Немає доступних часів на цей день.')
+	if (slots.length === 0) return await ctx.reply('Немає доступних часів на цей день.', { parse_mode: 'Markdown' },)
 
 	const buttons = slots.map(s => {
 		// Формируем текст кнопки с временем и датой
@@ -157,6 +161,7 @@ bot_events.action(/slot_(.+?)_(\d+)/, async ctx => {
 	if (!session || session.sessionId !== clickedSessionId || session.completed) {
 		return await ctx.reply(
 			'🤖 Поточне бронювання вже завершено або застаріло. Натисніть /book, щоб почати заново. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
+      { parse_mode: 'Markdown' },
 		)
 	}
 
@@ -169,6 +174,7 @@ bot_events.action(/slot_(.+?)_(\d+)/, async ctx => {
 	if (slotTaken) {
 		return await ctx.reply(
 			'❌ На жаль, вибраний час вже зайнятий. Будь ласка, оберіть інший час.',
+      { parse_mode: 'Markdown' },
 		)
 	}
 
@@ -177,7 +183,7 @@ bot_events.action(/slot_(.+?)_(\d+)/, async ctx => {
 	session.waitingName = true
 	sessions.set(userId, session)
 
-	await ctx.reply("Будь ласка, введіть ваше ім'я для бронювання:")
+	await ctx.reply("Будь ласка, введіть ваше ім'я для бронювання:", { parse_mode: 'Markdown' })
 })
 
 // --- Выбор формата встречи ---
@@ -188,13 +194,14 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 	if (!session || session.completed) {
 		return await ctx.reply(
 			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
+      { parse_mode: 'Markdown' }
 		)
 	}
 
 	const type = ctx.match[1]
 
 	if (!type) {
-		await ctx.reply('Необхідно обрати один з двох запропонованих варіантів')
+		await ctx.reply('Необхідно обрати один з двох запропонованих варіантів', { parse_mode: 'Markdown' },)
 	}
 	// if (type === 'offline') {
 	// 	session.meetingType = OFFLINE_MEETING_MESSAGE
@@ -215,7 +222,7 @@ bot_events.action(/meeting_(offline|online)/, async ctx => {
 
 bot_events.command('get_meetings', async ctx => {
 	const userId = String(ctx.from.id)
-	await ctx.reply('Збираю інформацію про ваші мітинги...')
+	await ctx.reply('Збираю інформацію про ваші мітинги...', { parse_mode: 'Markdown' })
 
 	await getUpcomingMeetings(
     userId, TIMEZONE, myCalendar, GOOGLE_CALENDAR_MY_ID, ctx
@@ -248,12 +255,14 @@ bot_events.on('text', async ctx => {
 	if (!session) {
 		return await ctx.reply(
 			'🤖 Для початку натисніть /book, щоб розпочати бронювання зустрічі. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
+      { parse_mode: 'Markdown' }
 		)
 	}
 
 	if (session.completed) {
 		return await ctx.reply(
 			'🤖 Поточне бронювання вже завершено. Натисніть /book, щоб почати заново. Або натисніть на /get_meetings для отримання інформації про поточні мітинги на наступні два тижні.',
+      { parse_mode: 'Markdown' }
 		)
 	}
 
@@ -270,6 +279,7 @@ bot_events.on('text', async ctx => {
 
 		await ctx.reply(
 			'Будь ласка, поділіться тим що вас турбує, із чим ви хочете впоратись за допомогою моєї допомоги:',
+      { parse_mode: 'Markdown' }
 		)
 		return
 	}
@@ -280,11 +290,13 @@ bot_events.on('text', async ctx => {
 		if (reason.length < 10) {
 			return await ctx.reply(
 				'❌ Опис проблеми занадто короткий, опишіть більш детально.',
+        { parse_mode: 'Markdown' }
 			)
 		}
 		if (reason.length > 500) {
 			return await ctx.reply(
 				'❌ Опис проблеми занадто довгий, спробуйте описати менш детально.',
+        { parse_mode: 'Markdown' }
 			)
 		}
 		session.reason = reason
@@ -332,7 +344,7 @@ bot_events.on('text', async ctx => {
 		session.waitingPhone = false
 		session.waitingEmail = true
 		sessions.set(userId, session)
-		return await ctx.reply('Дякую! Тепер введіть ваш email для підтвердження броні:')
+		return await ctx.reply('Дякую! Тепер введіть ваш email для підтвердження броні:', { parse_mode: 'Markdown' })
 	}
 
 	// ждем email
@@ -341,7 +353,7 @@ bot_events.on('text', async ctx => {
 		const validEmailPattern = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/
 
 		if (!validEmailPattern.test(email)) {
-			return await ctx.reply('❌ Невірний формат email. Спробуйте ще раз:')
+			return await ctx.reply('❌ Невірний формат email. Спробуйте ще раз:', { parse_mode: 'Markdown' })
 		}
 
 		session.email = email
@@ -399,11 +411,13 @@ bot_events.on('text', async ctx => {
 
 			await ctx.reply(
 				'Для того, щоб забронювати ще одну зустріч, натисніть /start. Для того, щоб отримати інформацію про всі наші зустрічі на найближчі два тижні, натисніть /get_meetings',
+        { parse_mode: 'Markdown' },
 			)
 		} catch (err) {
 			console.error('Помилка при створенні події на фінальному етапі:', err)
 			await ctx.reply(
 				'⚠️ Не вдалось забронювати час та дату. Будь ласка, спробуйте пізніше.',
+        { parse_mode: 'Markdown' },
 			)
 		}
 		return
@@ -412,6 +426,7 @@ bot_events.on('text', async ctx => {
 	return await ctx.reply(
 		'🤖 Вибачте, введений вами текст мені не зрозумілий.\n\n' +
 			'Для початку роботи натисніть на /book',
+      { parse_mode: 'Markdown' },
 	)
 })
 
