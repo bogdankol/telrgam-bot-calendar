@@ -399,7 +399,7 @@ bot_events.on('text', async ctx => {
 
 			await bot_notification.telegram.sendMessage(
 				ADMIN_ID,
-				`📢 *НОВЕ БРОНЮВАННЯ*\n\n` +
+				`📢 НОВЕ БРОНЮВАННЯ\n\n` +
 					`📅 Дата та час: ${start.toFormat('dd.MM.yyyy HH:mm')}\n` +
 					`📞 Телефон: ${session.phone}\n` +
 					`Формат зустрічі: ${session.meetingType === 'offline' ? OFFLINE_MEETING_MESSAGE : ONLINE_MEETING_MESSAGE.split('.')[0]}\n` +
