@@ -2,9 +2,6 @@ import { DateTime } from 'luxon'
 import { TIMEZONE } from './vars'
 import { calendar_v3 } from 'googleapis'
 
-const GOOGLE_CALENDAR_MY_ID = process.env.GOOGLE_CALENDAR_MY_ID!
-const GOOGLE_CALENDAR_WORK_ID = process.env.GOOGLE_CALENDAR_WORK_ID!
-
 // --- Получение доступных дней ---
 export async function getAvailableDays(
 	daysAhead = 30,
@@ -26,7 +23,12 @@ export async function getAvailableDays(
 	// Получаем все дни параллельно
 	const results = await Promise.all(
 		candidateDays.map(async day => {
-			const slots = await getAvailableSlotsForDay(day, myCalendar, myCalendarId, workCalendarId)
+			const slots = await getAvailableSlotsForDay(
+				day,
+				myCalendar,
+				myCalendarId,
+				workCalendarId,
+			)
 			return { day, hasSlots: slots.length > 0 }
 		}),
 	)
@@ -63,18 +65,26 @@ export async function getAvailableSlotsForDay(
 	const breakAfterMeeting = 0 // мин
 	const maxMeetingsPerDay = 8
 
-	let slotStart = day.set({
+	// ✅ Убедимся, что day имеет нужную зону
+	let slotStart = day.setZone(TIMEZONE).set({
 		hour: startHour,
 		minute: 0,
 		second: 0,
 		millisecond: 0,
 	})
+
 	const timeRanges: { start: string; end: string }[] = []
 
 	for (let i = 0; i < maxMeetingsPerDay; i++) {
 		const slotEnd = slotStart.plus({ minutes: meetingDuration })
 		if (slotEnd.hour > endHour) break
-		timeRanges.push({ start: slotStart.toISO()!, end: slotEnd.toISO()! })
+
+		// ✅ Принудительно сохраняем локальное время
+		timeRanges.push({
+			start: slotStart.toISO({ suppressMilliseconds: true })!,
+			end: slotEnd.toISO({ suppressMilliseconds: true })!,
+		})
+
 		slotStart = slotEnd.plus({ minutes: breakAfterMeeting })
 	}
 
@@ -83,12 +93,12 @@ export async function getAvailableSlotsForDay(
 		requestBody: {
 			timeMin: timeRanges[0].start,
 			timeMax: timeRanges[timeRanges.length - 1].end,
-			timeZone: TIMEZONE,
+			timeZone: TIMEZONE, // ✅ указываем зону явно
 			items: [{ id: myCalendarId }, { id: workCalendarId }],
 		},
 	})
 
-	// 🧩 Объединяем занятые интервалы из обоих календарей
+	// 🧩 Объединяем занятые интервалы
 	const busyPrimary = res.data.calendars?.[myCalendarId]?.busy || []
 	const busySecondary = res.data.calendars?.[workCalendarId]?.busy || []
 	const allBusy = [...busyPrimary, ...busySecondary]
@@ -96,13 +106,13 @@ export async function getAvailableSlotsForDay(
 	// 📆 Фильтруем только свободные интервалы
 	const availableSlots = timeRanges
 		.map(range => {
-			const start = DateTime.fromISO(range.start)
-			const end = DateTime.fromISO(range.end)
+			const start = DateTime.fromISO(range.start, { zone: TIMEZONE })
+			const end = DateTime.fromISO(range.end, { zone: TIMEZONE })
 
 			const overlaps = allBusy.some(
 				busy =>
-					DateTime.fromISO(busy.start!) < end &&
-					DateTime.fromISO(busy.end!) > start,
+					DateTime.fromISO(busy.start!, { zone: TIMEZONE }) < end &&
+					DateTime.fromISO(busy.end!, { zone: TIMEZONE }) > start,
 			)
 
 			return !overlaps ? { start, label: start.toFormat('HH:mm') } : null
